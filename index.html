@@ -3,40 +3,128 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0b1220" />
 <title>Rx Clinical AI Agent - Egyptian Prescription Reader</title>
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
-  body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
-  .tab-active { background-color: #2563eb; color: #ffffff; box-shadow: 0 4px 12px rgba(37,99,235,0.35); }
-  .pulse-badge { animation: softPulse 2s infinite; }
-  @keyframes softPulse { 0%,100% { opacity: 1; } 50% { opacity: .72; } }
-  .spinner { border: 3px solid rgba(255,255,255,.15); border-top-color: #3b82f6; border-radius: 50%; width: 16px; height: 16px; animation: spin .8s linear infinite; display: inline-block; }
+  :root {
+    --bg: #0b1220;
+    --surface: #101a2e;
+    --surface-2: #16223a;
+    --surface-3: #1c2a45;
+    --border: #233252;
+    --text: #f1f5fb;
+    --text-dim: #94a3b8;
+    --primary: #10b981;
+    --primary-strong: #059669;
+    --primary-soft: rgba(16,185,129,.12);
+    --info: #60a5fa;
+    --info-soft: rgba(96,165,250,.12);
+    --warn: #fbbf24;
+    --warn-soft: rgba(251,191,36,.12);
+    --danger: #f87171;
+    --danger-soft: rgba(248,113,113,.12);
+  }
+  * { -webkit-tap-highlight-color: transparent; }
+  html { font-size: 16px; }
+  body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); overflow-x: hidden; }
+
+  /* ---------- reusable surfaces ---------- */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 1.4rem; box-shadow: 0 10px 30px rgba(2,8,23,.35); }
+  .card-soft { background: var(--surface-2); border: 1px solid var(--border); border-radius: 1rem; }
+
+  /* ---------- buttons ---------- */
+  .btn { display:flex; align-items:center; justify-content:center; gap:.6rem; font-weight:700; border-radius:1rem; transition:transform .12s ease, filter .15s ease, background .15s ease; cursor:pointer; user-select:none; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: linear-gradient(135deg, #10b981, #0d9488); color:#fff; box-shadow: 0 6px 18px rgba(16,185,129,.30); }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-neutral { background: var(--surface-3); color: var(--text); border:1px solid var(--border); }
+  .btn-neutral:hover { background:#22325299; }
+  .btn-ghost-emerald { background: rgba(16,185,129,.10); color:#34d399; border:1px solid rgba(16,185,129,.35); }
+  .btn-ghost-emerald:hover { background: rgba(16,185,129,.18); }
+  .btn-ghost-info { background: rgba(96,165,250,.10); color:#93c5fd; border:1px solid rgba(96,165,250,.35); }
+  .btn-ghost-info:hover { background: rgba(96,165,250,.18); }
+  .btn-ghost-violet { background: rgba(167,139,250,.10); color:#c4b5fd; border:1px solid rgba(167,139,250,.35); }
+  .btn-ghost-violet:hover { background: rgba(167,139,250,.18); }
+  .btn-danger { background: rgba(248,113,113,.10); color:#fca5a5; border:1px solid rgba(248,113,113,.35); }
+  .btn-danger:hover { background: rgba(248,113,113,.18); }
+  .btn-lg { min-height: 3.6rem; padding: .85rem 1.1rem; font-size: .95rem; border-radius: 1.1rem; }
+  .btn-md { min-height: 2.7rem; padding: .55rem .95rem; font-size: .85rem; }
+  .btn-sm { min-height: 2.2rem; padding: .35rem .75rem; font-size: .78rem; border-radius:.7rem; }
+
+  button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+  /* ---------- tabs ---------- */
+  .tab-btn { background: var(--surface); color: var(--text-dim); border:1px solid transparent; border-radius:1rem; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-active { background: var(--primary-soft) !important; color:#34d399 !important; border-color: rgba(16,185,129,.45) !important; box-shadow: inset 0 0 0 1px rgba(16,185,129,.25); }
+
+  /* ---------- toast ---------- */
+  .toast { border-radius:1.1rem; padding:.95rem 1.1rem; font-size:.9rem; font-weight:600; display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
+  .toast-ok { background: var(--primary-soft); border:1px solid rgba(16,185,129,.45); color:#6ee7b7; }
+  .toast-err { background: var(--danger-soft); border:1px solid rgba(248,113,113,.50); color:#fca5a5; }
+  .toast-info { background: var(--info-soft); border:1px solid rgba(96,165,250,.45); color:#93c5fd; }
+
+  /* ---------- progress ---------- */
+  .spinner { border: 3px solid rgba(255,255,255,.15); border-top-color: var(--primary); border-radius:50%; width:18px; height:18px; animation: spin .8s linear infinite; display:inline-block; flex-shrink:0; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .row-input { background: #020617; border: 1px solid #334155; border-radius: .5rem; padding: .3rem .5rem; font-size: .75rem; color: #fff; width: 100%; }
-  .row-input:focus { border-color: #3b82f6; outline: none; }
-  .edit-mode { background: rgba(59,130,246,.08); }
+  .progress-track { width:100%; height:.55rem; background:#0b1220; border-radius:999px; overflow:hidden; }
+  .progress-fill { height:100%; background:linear-gradient(90deg, #10b981, #34d399); border-radius:999px; transition:width .35s ease; }
+
+  /* ---------- pipeline stage pills ---------- */
+  .stage { border-radius:.85rem; padding:.55rem .7rem; font-size:.75rem; font-weight:700; display:flex; align-items:center; gap:.45rem; background:#0b1220; border:1px solid var(--border); color:var(--text-dim); }
+  .stage-busy { background: var(--info-soft) !important; border-color: rgba(96,165,250,.5) !important; color:#93c5fd !important; }
+  .stage-done { background: var(--primary-soft) !important; border-color: rgba(16,185,129,.5) !important; color:#6ee7b7 !important; }
+
+  /* ---------- inputs ---------- */
+  .field { background:#0b1220; border:1px solid var(--border); border-radius:.9rem; color:var(--text); }
+  .field:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16,185,129,.15); outline:none; }
+  .row-input { background:#0b1220; border:1px solid var(--border); border-radius:.55rem; padding:.45rem .6rem; font-size:.85rem; color:var(--text); width:100%; }
+  .row-input:focus { border-color: var(--primary); outline:none; }
+  .edit-mode { background: rgba(16,185,129,.06); }
+
+  /* ---------- pills & badges ---------- */
+  .pill { font-size:.68rem; font-weight:800; padding:.28rem .7rem; border-radius:999px; white-space:nowrap; }
+  .pill-ok { background: var(--primary-soft); color:#34d399; border:1px solid rgba(16,185,129,.4); }
+  .pill-info { background: var(--info-soft); color:#93c5fd; border:1px solid rgba(96,165,250,.4); }
+  .pill-warn { background: var(--warn-soft); color:#fcd34d; border:1px solid rgba(251,191,36,.4); }
+  .pill-danger { background: var(--danger-soft); color:#fca5a5; border:1px solid rgba(248,113,113,.45); }
+  .pulse-badge { animation: softPulse 2s infinite; }
+  @keyframes softPulse { 0%,100% { opacity: 1; } 50% { opacity: .7; } }
+
+  /* ---------- numbered step headers ---------- */
+  .step-num { width:2rem; height:2rem; border-radius:999px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.9rem; flex-shrink:0; background: var(--primary-soft); color:#34d399; border:1px solid rgba(16,185,129,.4); }
+
+  .sev-major { background:#dc2626; color:#fff; }
+  .sev-moderate { background:#d97706; color:#fff; }
+  .sev-minor { background:#ca8a04; color:#1c1917; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001s !important; transition-duration: .001s !important; }
+  }
 </style>
 </head>
-<body class="min-h-screen pb-24">
+<body class="min-h-screen pb-24" style="background: radial-gradient(1200px 600px at 50% -10%, rgba(16,185,129,.07), transparent 60%), var(--bg);">
 
 <!-- Top App Bar -->
-<header class="sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-3">
+<header class="sticky top-0 z-30 px-4 py-3" style="background:rgba(11,18,32,.92); backdrop-filter:blur(10px); border-bottom:1px solid var(--border);">
   <div class="max-w-3xl mx-auto flex items-center justify-between gap-2">
-    <div class="flex items-center gap-2.5">
-      <div class="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-lg font-extrabold shadow-lg shadow-blue-600/30">Rx</div>
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-lg font-extrabold text-white shadow-lg" style="background:linear-gradient(135deg,#10b981,#0d9488); box-shadow:0 6px 16px rgba(16,185,129,.35);">Rx</div>
       <div>
-        <h1 class="text-base sm:text-lg font-extrabold text-white leading-tight">Rx Clinical AI Agent</h1>
-        <p class="text-xs text-slate-400">Egyptian Drug DB (eg-drugs) + DDI Screen + Double Verification</p>
+        <h1 class="text-base sm:text-lg font-extrabold leading-tight">Rx Clinical AI Agent</h1>
+        <p class="text-xs" style="color:var(--text-dim);">Egyptian Drug DB + DDI Screen + Learning Memory</p>
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <button id="btnOpenHistoryShortcut" type="button" class="bg-emerald-950/90 border border-emerald-500/40 rounded-xl px-3 py-1.5 text-left hover:bg-emerald-900/60 transition">
-        <div class="text-[10px] uppercase tracking-wider text-emerald-300 font-semibold">Saved Rx History</div>
-        <div class="text-sm font-extrabold text-emerald-400 flex items-center gap-1"><span id="totalHistoryBadge">0</span><span class="text-xs font-normal">Rx</span></div>
+      <button id="btnOpenHistoryShortcut" type="button" class="btn btn-ghost-emerald btn-md !justify-start flex-col !gap-0 !py-1.5 text-left" title="Saved prescriptions">
+        <div class="text-[10px] uppercase tracking-wider font-bold" style="color:#6ee7b7;">History</div>
+        <div class="text-sm font-extrabold flex items-center gap-1 leading-tight"><span id="totalHistoryBadge">0</span><span class="text-xs font-normal">Rx</span></div>
       </button>
-      <button id="btnOpenApiModal" type="button" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition" title="Configure Free Gemini API Key">
-        &#128273; <span id="apiStatusDot" class="inline-block w-2 h-2 rounded-full bg-amber-400 ml-1"></span>
+      <button id="btnOpenApiModal" type="button" class="btn btn-neutral btn-md !px-3" title="API Key settings">
+        <span class="text-base leading-none">&#128273;</span>
+        <span id="apiStatusDot" class="inline-block w-2.5 h-2.5 rounded-full" style="background:var(--warn);"></span>
       </button>
     </div>
   </div>
@@ -45,170 +133,208 @@
 <main class="max-w-3xl mx-auto px-4 pt-4 space-y-4">
 
   <!-- Tabs -->
-  <nav class="grid grid-cols-3 gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
-    <button id="tabBtnScan" type="button" class="tab-active py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5"><span>&#128247;</span><span>Scan</span></button>
-    <button id="tabBtnHistory" type="button" class="text-slate-300 hover:text-white py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5"><span>&#128450;&#65039;</span><span>History</span></button>
-    <button id="tabBtnDb" type="button" class="text-slate-300 hover:text-white py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5"><span>&#128138;</span><span>Drug DB</span></button>
+  <nav class="grid grid-cols-3 gap-2 p-1.5 rounded-2xl" style="background:var(--surface); border:1px solid var(--border);">
+    <button id="tabBtnScan" type="button" class="tab-btn tab-active tab-active btn py-3 px-3 text-sm font-bold gap-1.5"><span class="text-base">&#128247;</span><span>Scan</span></button>
+    <button id="tabBtnHistory" type="button" class="tab-btn btn py-3 px-3 text-sm font-bold gap-1.5"><span class="text-base">&#128450;&#65039;</span><span>History</span></button>
+    <button id="tabBtnDb" type="button" class="tab-btn btn py-3 px-3 text-sm font-bold gap-1.5"><span class="text-base">&#128138;</span><span>Drug DB</span></button>
   </nav>
 
   <!-- Toast -->
-  <div id="toastBanner" class="hidden rounded-2xl p-3.5 border text-sm font-bold flex items-center justify-between transition-all">
+  <div id="toastBanner" class="hidden toast">
     <span id="toastText"></span>
-    <button id="btnCloseToast" type="button" class="text-xs underline opacity-80 hover:opacity-100 ml-3 shrink-0">Dismiss</button>
+    <button id="btnCloseToast" type="button" class="text-xs underline opacity-80 hover:opacity-100 ml-2 shrink-0">Dismiss</button>
   </div>
 
   <!-- ============ VIEW 1: SCAN ============ -->
   <section id="viewScan" class="space-y-4">
 
-    <!-- API Key Bar -->
-    <div id="inlineApiBar" class="bg-blue-950/70 border-2 border-blue-500/50 rounded-3xl p-4 space-y-2.5 shadow-lg">
+    <!-- API Key Card -->
+    <div id="inlineApiBar" class="card p-5 space-y-3">
       <div class="flex items-center justify-between gap-2">
-        <div class="text-xs sm:text-sm font-extrabold text-blue-200 flex items-center gap-2"><span>&#128273;</span><span>Step 1: Paste Your Free Gemini API Key (stored only on your phone)</span></div>
-        <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-900/80 text-emerald-300 border border-emerald-500/40">27,617 Egyptian Drugs (Live)</span>
+        <div class="flex items-center gap-2.5 font-extrabold text-sm">
+          <span class="step-num">1</span>
+          <span class="text-sm sm:text-base">Activate the AI (one-time setup)</span>
+        </div>
+        <span class="pill pill-ok hidden sm:inline-block">27,617 Egyptian Drugs (Live)</span>
       </div>
+      <p class="text-xs leading-relaxed" style="color:var(--text-dim);">Paste your free Gemini API key. It stays on your phone only, never leaves the browser.</p>
       <div class="flex flex-col sm:flex-row gap-2">
-        <input id="inlineApiKeyInput" type="text" style="-webkit-text-security: disc;" autocomplete="off" placeholder="AIzaSy... get it free at aistudio.google.com" class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white font-mono focus:border-blue-400 focus:outline-none" />
-        <button id="btnInlineSaveKey" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition shrink-0">Activate AI Agent</button>
+        <input id="inlineApiKeyInput" type="password" placeholder="aq..." class="field flex-1 px-4 py-3.5 text-sm font-mono" />
+        <button id="btnInlineSaveKey" type="button" class="btn btn-primary btn-md shrink-0 !px-6">Activate AI Agent</button>
       </div>
-      <p class="text-[11px] text-slate-400">Never share this key with anyone. It stays in your browser localStorage.</p>
     </div>
 
     <!-- Capture Card -->
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3.5 shadow-xl">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+    <div class="card p-5 space-y-4">
+      <div class="flex items-center gap-2.5 font-extrabold">
+        <span class="step-num">2</span>
         <div>
-          <h2 class="text-base font-extrabold text-white">Capture or Select Prescription</h2>
-          <p class="text-xs text-slate-400">Camera reads immediately. Gallery lets you Read Now or Save to DB only.</p>
-        </div>
-        <div class="flex items-center gap-2 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700">
-          <label for="specialtySelect" class="text-xs text-slate-300 font-bold whitespace-nowrap">Specialty:</label>
-          <select id="specialtySelect" class="bg-transparent text-xs font-extrabold text-blue-400 focus:outline-none">
-            <option value="auto">Auto-Detect</option>
-            <option value="internal medicine">Internal Medicine & GI</option>
-            <option value="orthopedics">Orthopedics</option>
-            <option value="pediatrics">Pediatrics</option>
-            <option value="cardiology">Cardiology</option>
-            <option value="dermatology">Dermatology</option>
-            <option value="ENT">ENT</option>
-            <option value="general practice">General Practice</option>
-          </select>
+          <h2 class="text-sm sm:text-base leading-tight">Capture the Prescription</h2>
+          <p class="text-xs font-normal mt-0.5" style="color:var(--text-dim);">Camera reads immediately · Gallery lets you choose · Training Mode for bulk</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-        <div class="relative overflow-hidden bg-blue-600 hover:bg-blue-500 active:scale-[0.99] text-white font-extrabold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2.5 shadow-lg shadow-blue-600/25 transition text-sm cursor-pointer">
-          <span class="text-lg">&#128247;</span>
-          <div class="text-left"><div>Take Photo (Auto-Read)</div><div class="text-[11px] font-normal text-blue-100">Reads immediately & saves</div></div>
-          <input id="cameraRxInput" type="file" accept="image/*" capture="environment" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+      <div class="card-soft px-3.5 py-2.5 flex items-center justify-between gap-2">
+        <label for="specialtySelect" class="text-xs font-bold" style="color:var(--text-dim);">Doctor specialty hint:</label>
+        <select id="specialtySelect" class="bg-transparent text-sm font-extrabold focus:outline-none" style="color:#34d399;">
+          <option value="auto">Auto-Detect</option>
+          <option value="internal medicine">Internal Medicine &amp; GI</option>
+          <option value="orthopedics">Orthopedics</option>
+          <option value="pediatrics">Pediatrics</option>
+          <option value="cardiology">Cardiology</option>
+          <option value="dermatology">Dermatology</option>
+          <option value="ENT">ENT</option>
+          <option value="general practice">General Practice</option>
+        </select>
+      </div>
+
+      <!-- Primary: camera -->
+      <div class="relative overflow-hidden btn btn-primary btn-lg !justify-start w-full">
+        <span class="text-2xl">&#128247;</span>
+        <div class="text-left leading-tight">
+          <div class="text-base font-extrabold">Take Photo — Reads Instantly</div>
+          <div class="text-xs font-normal opacity-85">Point at the prescription, shoot, done</div>
         </div>
-        <div class="relative overflow-hidden bg-slate-800 hover:bg-slate-700 active:scale-[0.99] text-emerald-300 border border-emerald-500/30 font-extrabold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2.5 transition text-sm cursor-pointer">
-          <span class="text-lg">&#128241;</span>
-          <div class="text-left"><div>Choose from Phone</div><div class="text-[11px] font-normal text-slate-400">Read OR Save to History only</div></div>
+        <input id="cameraRxInput" type="file" accept="image/*" capture="environment" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+      </div>
+
+      <!-- Secondary: gallery + training -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div class="relative overflow-hidden btn btn-ghost-info btn-lg !justify-start">
+          <span class="text-xl">&#128241;</span>
+          <div class="text-left leading-tight">
+            <div class="text-sm font-extrabold">Choose from Phone</div>
+            <div class="text-xs font-normal opacity-80">Read now or save for later</div>
+          </div>
           <input id="galleryRxInput" type="file" accept="image/*" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+        </div>
+        <div class="relative overflow-hidden btn btn-ghost-violet btn-lg !justify-start">
+          <span class="text-xl">&#128218;</span>
+          <div class="text-left leading-tight">
+            <div class="text-sm font-extrabold">Training Mode (up to 50)</div>
+            <div class="text-xs font-normal opacity-80">Teach it your doctors' handwriting</div>
+          </div>
+          <input id="trainingInput" type="file" accept="image/*" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
         </div>
       </div>
 
       <!-- Gallery Choice Box -->
-      <div id="inlineGalleryChoiceBox" class="hidden bg-slate-950 border-2 border-emerald-500/60 rounded-2xl p-4 space-y-3 shadow-xl">
+      <div id="inlineGalleryChoiceBox" class="hidden card-soft !border-2 p-4 space-y-3" style="border-color:rgba(96,165,250,.5);">
         <div class="flex items-center justify-between">
-          <div class="text-sm font-extrabold text-emerald-300" id="inlineChoiceTitle">Image selected! Choose action:</div>
-          <button id="btnCancelInlineChoice" type="button" class="text-xs text-slate-400 hover:text-white font-bold">&#10005; Cancel</button>
+          <div class="text-sm font-extrabold" style="color:#93c5fd;" id="inlineChoiceTitle">Image selected! Choose action:</div>
+          <button id="btnCancelInlineChoice" type="button" class="btn btn-neutral btn-sm">&#10005;</button>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <button id="btnInlineReadNow" type="button" class="bg-blue-600 hover:bg-blue-500 text-white font-extrabold py-3 px-4 rounded-xl text-left flex items-center justify-between transition">
-            <div><div class="text-xs sm:text-sm">1. Read &amp; Analyze Now</div><div class="text-[11px] font-normal text-blue-100">OCR, DB match, DDI, double-check</div></div><span class="text-lg">&#128269;</span>
+          <button id="btnInlineReadNow" type="button" class="btn btn-primary btn-md !justify-between text-left">
+            <div><div class="text-sm">Read &amp; Analyze Now</div><div class="text-[11px] font-normal opacity-85">OCR, DB match, DDI, audit</div></div><span>&#128269;</span>
           </button>
-          <button id="btnInlineSaveOnly" type="button" class="bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 font-extrabold py-3 px-4 rounded-xl text-left flex items-center justify-between transition">
-            <div><div class="text-xs sm:text-sm">2. Save to History Only</div><div class="text-[11px] font-normal text-emerald-200/80">Store image without reading</div></div><span class="text-lg">&#128452;&#65039;</span>
+          <button id="btnInlineSaveOnly" type="button" class="btn btn-ghost-emerald btn-md !justify-between text-left">
+            <div><div class="text-sm">Save to History Only</div><div class="text-[11px] font-normal opacity-80">Store without reading</div></div><span>&#128452;&#65039;</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Training Choice Box -->
+      <div id="trainChoiceBox" class="hidden card-soft !border-2 p-4 space-y-3" style="border-color:rgba(167,139,250,.5);">
+        <div class="flex items-center justify-between">
+          <div class="text-sm font-extrabold" style="color:#c4b5fd;" id="trainChoiceTitle">Training images ready! Choose action:</div>
+          <button id="btnCancelTrainChoice" type="button" class="btn btn-neutral btn-sm">&#10005;</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button id="btnTrainReadAll" type="button" class="btn btn-ghost-violet btn-md !justify-between text-left" style="background:rgba(167,139,250,.2); color:#e9e2ff;">
+            <div><div class="text-sm">Save &amp; Read All (Training)</div><div class="text-[11px] font-normal opacity-80">Builds the learning memory</div></div><span>&#129504;</span>
+          </button>
+          <button id="btnTrainSaveOnly" type="button" class="btn btn-neutral btn-md !justify-between text-left">
+            <div><div class="text-sm">Save Only, Read Later</div><div class="text-[11px] font-normal opacity-70">From History, one by one</div></div><span>&#128452;&#65039;</span>
           </button>
         </div>
       </div>
 
       <!-- Progress Box -->
-      <div id="liveProgressBox" class="hidden bg-blue-950/80 border border-blue-400/50 rounded-2xl p-3.5 space-y-2">
-        <div class="flex items-center justify-between text-xs sm:text-sm font-extrabold text-blue-200">
-          <span id="liveProgressStepText" class="flex items-center gap-2"><span class="spinner"></span> Step 1/4: Reading prescription handwriting...</span>
-          <span id="liveProgressPercent" class="text-emerald-300">25%</span>
+      <div id="liveProgressBox" class="hidden card-soft p-4 space-y-2.5">
+        <div class="flex items-center justify-between text-sm font-extrabold">
+          <span id="liveProgressStepText" class="flex items-center gap-2.5" style="color:#93c5fd;"><span class="spinner"></span> Step 1/4: Reading prescription handwriting...</span>
+          <span id="liveProgressPercent" class="font-extrabold" style="color:#34d399;">25%</span>
         </div>
-        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div id="liveProgressBar" class="h-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-300" style="width: 25%"></div></div>
+        <div class="progress-track"><div id="liveProgressBar" class="progress-fill" style="width: 25%"></div></div>
       </div>
 
       <!-- Demos -->
-      <div class="pt-2 border-t border-slate-800/80">
-        <div class="text-xs text-slate-400 font-semibold mb-2">Test without API key (offline demos):</div>
+      <div class="pt-3 border-t" style="border-color:var(--border);">
+        <div class="text-xs font-bold mb-2" style="color:var(--text-dim);">Try without an API key (offline demos):</div>
         <div class="grid grid-cols-3 gap-2">
-          <button data-demo="1" type="button" class="demo-btn py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-blue-500/40 text-xs font-bold text-blue-300 transition truncate">1. Internal (DDI)</button>
-          <button data-demo="2" type="button" class="demo-btn py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-300 transition truncate">2. Ortho (Major)</button>
-          <button data-demo="3" type="button" class="demo-btn py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-300 transition truncate">3. Peds (Liquids)</button>
+          <button data-demo="1" type="button" class="demo-btn btn btn-neutral btn-sm !justify-center">1. Internal (DDI)</button>
+          <button data-demo="2" type="button" class="demo-btn btn btn-neutral btn-sm !justify-center">2. Ortho (Major)</button>
+          <button data-demo="3" type="button" class="demo-btn btn btn-neutral btn-sm !justify-center">3. Peds (Liquids)</button>
         </div>
       </div>
     </div>
 
     <!-- Preview Card -->
-    <div id="uploadedPreviewCard" class="hidden bg-slate-900 border border-blue-500/40 rounded-3xl p-4 space-y-3">
+    <div id="uploadedPreviewCard" class="hidden card p-4 space-y-3">
       <div class="flex items-center justify-between">
-        <div class="text-sm font-extrabold text-blue-300 flex items-center gap-2"><span>&#128444;&#65039;</span><span id="uploadedFileName">Uploaded Prescription</span></div>
-        <span id="analysisModeBadge" class="text-xs px-2.5 py-1 rounded-full bg-blue-950 text-blue-300 border border-blue-700 font-semibold">Processed</span>
+        <div class="text-sm font-extrabold flex items-center gap-2" style="color:#93c5fd;"><span>&#128444;&#65039;</span><span id="uploadedFileName">Uploaded Prescription</span></div>
+        <span id="analysisModeBadge" class="pill pill-info">Processed</span>
       </div>
-      <img id="uploadedRxImg" src="" alt="Prescription Preview" class="max-w-full h-auto max-h-56 mx-auto rounded-2xl border border-slate-700 object-contain" />
+      <img id="uploadedRxImg" src="" alt="Prescription Preview" class="max-w-full h-auto max-h-56 mx-auto rounded-2xl object-contain" style="border:1px solid var(--border);" />
     </div>
 
     <!-- Pipeline Strip -->
-    <div id="pipelineStrip" class="hidden bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
+    <div id="pipelineStrip" class="hidden card p-4 space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <span class="text-lg">&#128105;&#8205;&#9877;&#65039;</span>
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">&#128105;&#8205;&#9877;&#65039;</span>
           <div>
-            <div id="rxDoctorHeader" class="text-sm font-extrabold text-white">Unknown doctor</div>
-            <div id="rxLogicSummary" class="text-xs text-emerald-400 font-semibold">Specialty filter: Auto</div>
+            <div id="rxDoctorHeader" class="text-sm sm:text-base font-extrabold">Unknown doctor</div>
+            <div id="rxLogicSummary" class="text-xs font-semibold" style="color:#34d399;">Specialty hint: Auto</div>
           </div>
         </div>
-        <span id="rxSavedBadge" class="hidden text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">&#10003; Saved to History</span>
+        <span id="rxSavedBadge" class="hidden pill pill-ok">&#10003; Saved to History</span>
       </div>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 text-[11px] font-bold">
-        <div id="stagePill1" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 flex items-center gap-1.5"><span class="st-ico text-slate-500">1.</span> Handwriting OCR</div>
-        <div id="stagePill2" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 flex items-center gap-1.5"><span class="st-ico text-slate-500">2.</span> Egyptian DB Match</div>
-        <div id="stagePill3" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 flex items-center gap-1.5"><span class="st-ico text-slate-500">3.</span> DDI Screen</div>
-        <div id="stagePill4" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 flex items-center gap-1.5"><span class="st-ico text-slate-500">4.</span> Double-Check</div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        <div id="stagePill1" class="stage"><span class="st-ico">1.</span> Handwriting OCR</div>
+        <div id="stagePill2" class="stage"><span class="st-ico">2.</span> Egyptian DB Match</div>
+        <div id="stagePill3" class="stage"><span class="st-ico">3.</span> DDI Screen</div>
+        <div id="stagePill4" class="stage"><span class="st-ico">4.</span> Double-Check</div>
       </div>
     </div>
 
     <!-- Items Table -->
-    <div id="itemsTableCard" class="hidden bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-      <div class="px-4 py-3 bg-slate-800/70 border-b border-slate-800 flex items-center justify-between gap-2">
+    <div id="itemsTableCard" class="hidden card overflow-hidden">
+      <div class="px-4 py-3.5 flex items-center justify-between gap-2" style="background:var(--surface-2); border-bottom:1px solid var(--border);">
         <div>
-          <h3 class="text-sm sm:text-base font-extrabold text-white">Extracted Medications &amp; Dosages</h3>
-          <p class="text-xs text-slate-400">Tap Edit on any row to correct it — the Agent learns automatically and improves next scans.</p>
+          <h3 class="text-sm sm:text-base font-extrabold">Extracted Medications &amp; Dosages</h3>
+          <p class="text-xs mt-0.5" style="color:var(--text-dim);">Tap Edit to correct any row — corrections teach the Agent.</p>
         </div>
-        <button id="btnAddRow" type="button" class="text-xs font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-xl transition shrink-0">+ Add Row</button>
+        <button id="btnAddRow" type="button" class="btn btn-neutral btn-sm shrink-0">+ Add Row</button>
       </div>
-      <div class="hidden sm:grid sm:grid-cols-12 gap-2 px-4 py-2 bg-slate-950/60 border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+      <div class="hidden sm:grid sm:grid-cols-12 gap-2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider" style="background:#0b1220; border-bottom:1px solid var(--border); color:var(--text-dim);">
         <div class="col-span-3">As Written &#8594; Egyptian Match</div>
         <div class="col-span-3">Dosage &amp; Regimen</div>
         <div class="col-span-2">Active Ingredient</div>
         <div class="col-span-2">Confidence</div>
         <div class="col-span-2 text-right">Actions</div>
       </div>
-      <div id="rxItemsContainer" class="divide-y divide-slate-800"></div>
+      <div id="rxItemsContainer" style="border-top:0;"></div>
     </div>
 
     <!-- DDI Box -->
-    <div id="interactionAlertBox" class="hidden rounded-3xl p-4 border-2 space-y-2">
+    <div id="interactionAlertBox" class="hidden card !border-2 p-5 space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-2 font-extrabold text-sm sm:text-base"><span class="text-xl">&#9888;&#65039;</span><span>Drug-Drug Interaction Screen</span></div>
+        <div id="interactionHeaderWrap" class="flex items-center gap-2 font-extrabold text-sm sm:text-base"><span class="text-xl">&#9888;&#65039;</span><span>Drug-Drug Interaction Screen</span></div>
         <div class="flex items-center gap-2">
-          <span id="interactionSeverity" class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-rose-600 text-white">-</span>
-          <a href="https://www.drugs.com/drug_interactions.html" target="_blank" rel="noopener" class="text-xs font-bold underline text-blue-300 hover:text-blue-200">Verify on Drugs.com &#8599;</a>
+          <span id="interactionSeverity" class="pill" style="background:#334155; color:#e2e8f0;">-</span>
+          <a href="https://www.drugs.com/drug_interactions.html" target="_blank" rel="noopener" class="text-xs font-bold underline" style="color:#93c5fd;">Verify on Drugs.com &#8599;</a>
         </div>
       </div>
-      <div id="interactionBody" class="text-xs sm:text-sm leading-relaxed space-y-1.5"></div>
+      <div id="interactionBody" class="text-xs sm:text-sm leading-relaxed space-y-2"></div>
     </div>
 
     <!-- Audit Card -->
-    <div id="auditCard" class="hidden bg-slate-900 border border-emerald-500/40 rounded-3xl p-4 space-y-2.5 shadow-lg">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2"><span class="text-lg">&#128737;&#65039;</span><h3 class="text-sm sm:text-base font-extrabold text-white">Stage 4: Self-Verification &amp; Clinical Sense Audit</h3></div>
-        <span id="finalAuditBadge" class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">Double-Check Complete</span>
+    <div id="auditCard" class="hidden card !border-2 p-5 space-y-3" style="border-color:rgba(16,185,129,.45);">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2"><span class="text-lg">&#128737;&#65039;</span><h3 class="text-sm sm:text-base font-extrabold">Self-Verification &amp; Clinical Audit</h3></div>
+        <span id="finalAuditBadge" class="pill pill-ok">&#10003; Double-Check Complete</span>
       </div>
       <div id="finalAuditList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"></div>
     </div>
@@ -217,13 +343,16 @@
 
   <!-- ============ VIEW 2: HISTORY ============ -->
   <section id="viewHistory" class="hidden space-y-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+    <div class="card p-5 space-y-3.5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div>
-          <h2 class="text-base font-extrabold text-white">Prescription History &amp; Learning Memory</h2>
-          <p class="text-xs text-slate-400">Stored on your phone only. Your corrections train the Agent for future scans.</p>
+          <h2 class="text-sm sm:text-base font-extrabold">Prescription History &amp; Learning Memory</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-dim);">Stored on your phone only. <span id="learnCountText" class="font-bold" style="color:#c4b5fd;"></span></p>
         </div>
-        <input id="historySearchInput" type="text" placeholder="Filter by drug, doctor, date..." class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none" />
+        <div class="flex items-center gap-2">
+          <button id="btnReadAllUnread" type="button" class="btn btn-ghost-violet btn-sm whitespace-nowrap">&#9654; Read all unread (<span id="unreadCountBadge">0</span>)</button>
+          <input id="historySearchInput" type="text" placeholder="Filter by drug, doctor, date..." class="field px-3.5 py-2.5 text-xs flex-1 sm:flex-none" />
+        </div>
       </div>
       <div id="historyCardsList" class="space-y-2.5"></div>
     </div>
@@ -231,36 +360,36 @@
 
   <!-- ============ VIEW 3: DRUG DB ============ -->
   <section id="viewDb" class="hidden space-y-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3.5">
+    <div class="card p-5 space-y-4">
       <div>
-        <h2 class="text-base font-extrabold text-white">Egyptian Drug Database</h2>
-        <p class="text-xs text-slate-400">Live search across 27,617+ drugs marketed in Egypt (English, Arabic, or active ingredient). Type at least 2 characters.</p>
+        <h2 class="text-sm sm:text-base font-extrabold">Egyptian Drug Database</h2>
+        <p class="text-xs mt-1" style="color:var(--text-dim);">Live search across 27,617+ drugs marketed in Egypt (English, Arabic, or active ingredient). Type at least 2 characters.</p>
       </div>
-      <input id="dbSearchInput" type="text" placeholder="e.g. concor, كونكور, or metformin..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-3 text-sm text-white focus:border-blue-500 focus:outline-none" />
-      <div id="dbResultsMeta" class="text-xs text-slate-400 font-semibold"></div>
+      <input id="dbSearchInput" type="text" placeholder="e.g. concor, كونكور, or metformin..." class="field w-full px-4 py-3.5 text-base" />
+      <div id="dbResultsMeta" class="text-xs font-semibold" style="color:var(--text-dim);"></div>
       <div id="dbResultsList" class="space-y-2"></div>
-      <p class="text-[10px] text-slate-500 pt-2 border-t border-slate-800">Drug data: <span class="text-slate-400">Egyptian Drug Database (eg-drugs) by Mahmoud Mohamed &#8212; CC BY 4.0</span>. Prices in EGP.</p>
+      <p class="text-[10px] pt-3 border-t" style="color:#64748b; border-color:var(--border);">Drug data: Egyptian Drug Database (eg-drugs) by Mahmoud Mohamed — CC BY 4.0. Prices in EGP.</p>
     </div>
   </section>
 
 </main>
 
 <!-- API Key Modal -->
-<div id="apiModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-  <div class="bg-slate-900 border border-slate-700 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl">
+<div id="apiModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(2,6,17,.75); backdrop-filter:blur(6px);">
+  <div class="card p-6 w-full max-w-md space-y-4">
     <div class="flex items-center justify-between">
-      <h3 class="text-base font-extrabold text-white">Gemini API Key Setup</h3>
-      <button id="btnCloseApiModal" type="button" class="text-slate-400 hover:text-white font-bold">&#10005;</button>
+      <h3 class="text-base font-extrabold">Gemini API Key Setup</h3>
+      <button id="btnCloseApiModal" type="button" class="btn btn-neutral btn-sm">&#10005;</button>
     </div>
-    <ol class="text-xs text-slate-300 space-y-1.5 list-decimal list-inside">
-      <li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-blue-400 underline">aistudio.google.com/apikey</a> (free)</li>
+    <ol class="text-xs space-y-2 list-decimal list-inside" style="color:var(--text-dim);">
+      <li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="underline font-bold" style="color:#93c5fd;">aistudio.google.com/apikey</a> (free)</li>
       <li>Click "Create API Key" and copy it</li>
       <li>Paste it below and press Save</li>
     </ol>
-    <input id="modalApiKeyInput" type="text" style="-webkit-text-security: disc;" autocomplete="off" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:border-blue-400 focus:outline-none" />
+    <input id="modalApiKeyInput" type="password" placeholder="aq..." class="field w-full px-4 py-3 text-sm font-mono" />
     <div class="flex gap-2">
-      <button id="btnModalSaveKey" type="button" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-2.5 rounded-xl text-sm transition">Save Key</button>
-      <button id="btnClearKey" type="button" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-4 py-2.5 rounded-xl text-sm transition">Clear</button>
+      <button id="btnModalSaveKey" type="button" class="btn btn-primary btn-md flex-1">Save Key</button>
+      <button id="btnClearKey" type="button" class="btn btn-neutral btn-md">Clear</button>
     </div>
   </div>
 </div>
@@ -270,7 +399,8 @@
 const EG_DRUGS_API = 'https://eg-drugs-api.mahmoudfalous.workers.dev/v1/search';
 const DRUGS_COM_URL = 'https://www.drugs.com/drug_interactions.html';
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
-const LS_KEY = 'rx_gemini_key', LS_HIST = 'rx_history', LS_CORR = 'rx_corrections';
+const LS_KEY = 'rx_gemini_key', LS_HIST = 'rx_history', LS_CORR = 'rx_corrections', LS_MAP = 'rx_learned_map';
+const MAX_TRAIN_FILES = 50;
 
 /* Offline fallback starter list: [tradeName, arabic, activeIngredient] */
 const STARTER_DRUGS = [
@@ -314,14 +444,15 @@ const STARTER_DRUGS = [
 ];
 
 /* ================= STATE ================= */
-let state = { items: [], doctor: 'Unknown doctor', specialty: 'auto', interactions: [], audit: [], currentImage: null, busy: false };
+let state = { items: [], doctor: 'Unknown doctor', specialty: 'auto', interactions: [], audit: [], currentImage: null, busy: false, currentEntry: null };
 let pendingFiles = [];
+let pendingTrainFiles = [];
 
 /* ================= HELPERS ================= */
 const $ = id => document.getElementById(id);
 function showToast(msg, type) {
-  const colors = { ok: 'border-emerald-500/50 bg-emerald-950/80 text-emerald-200', err: 'border-rose-500/50 bg-rose-950/80 text-rose-200', info: 'border-blue-500/50 bg-blue-950/80 text-blue-200' };
-  $('toastBanner').className = 'rounded-2xl p-3.5 border text-sm font-bold flex items-center justify-between transition-all ' + (colors[type] || colors.info);
+  const colors = { ok: 'toast-ok', err: 'toast-err', info: 'toast-info' };
+  $('toastBanner').className = 'toast ' + (colors[type] || colors.info);
   $('toastText').textContent = msg;
   $('toastBanner').classList.remove('hidden');
   clearTimeout(showToast._t);
@@ -330,8 +461,8 @@ function showToast(msg, type) {
 function getKey() { return (localStorage.getItem(LS_KEY) || '').trim(); }
 function refreshKeyUI() {
   const has = !!getKey();
-  $('apiStatusDot').className = 'inline-block w-2 h-2 rounded-full ml-1 ' + (has ? 'bg-emerald-400' : 'bg-amber-400');
-  $('inlineApiStatusTitle') && ($('inlineApiBar').querySelector('span + span') ? null : null);
+  $('apiStatusDot').style.background = has ? '#34d399' : 'var(--warn)';
+  $('apiStatusDot').style.boxShadow = has ? '0 0 8px rgba(52,211,153,.8)' : 'none';
 }
 function setProgress(show, step, pct) {
   $('liveProgressBox').classList.toggle('hidden', !show);
@@ -343,11 +474,8 @@ function setProgress(show, step, pct) {
 }
 function setStage(n, status) { /* status: todo | busy | done */
   const pill = $('stagePill' + n), ico = pill.querySelector('.st-ico');
-  pill.className = 'rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 ' +
-    (status === 'done' ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300' :
-     status === 'busy' ? 'bg-blue-950/70 border border-blue-500/50 text-blue-300' :
-     'bg-slate-950 border border-slate-800 text-slate-300');
-  ico.className = 'st-ico ' + (status === 'done' ? 'text-emerald-400' : status === 'busy' ? 'text-blue-400' : 'text-slate-500');
+  pill.className = 'stage' + (status === 'busy' ? ' stage-busy' : status === 'done' ? ' stage-done' : '');
+  ico.className = 'st-ico';
   ico.textContent = status === 'done' ? '✓' : n + '.';
 }
 function normalize(s) {
@@ -369,6 +497,25 @@ function drugScore(query, candidate) {
 }
 function loadJSON(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }
 function saveJSON(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+
+/* ================= LEARNING MEMORY ================= */
+function learnMapping(written, matchedName) {
+  if (!written || !matchedName) return;
+  const map = loadJSON(LS_MAP, {});
+  map['k:' + normalize(written)] = matchedName;
+  const keys = Object.keys(map);
+  if (keys.length > 300) delete map[keys[0]]; /* drop oldest */
+  saveJSON(LS_MAP, map);
+}
+function getCorrectionsPrompt() {
+  const corr = loadJSON(LS_CORR, []).slice(-50);
+  const map = loadJSON(LS_MAP, {});
+  const mapLines = Object.entries(map).slice(-30).map(([k, v]) => `- handwriting that looks like "${k.slice(2)}" is the Egyptian drug: ${v}`);
+  if (!corr.length && !mapLines.length) return '';
+  return '\n\nLEARNED FROM PAST PRESCRIPTIONS (this pharmacist confirmed these — apply when handwriting matches):' +
+    corr.map(c => `\n- "${c.wrong}" → ${c.right}`).join('') +
+    (mapLines.length ? '\n' + mapLines.join('\n') : '');
+}
 
 /* ================= GEMINI ================= */
 async function callGemini(parts) {
@@ -412,12 +559,6 @@ function extractJSON(text) {
   if (!m) throw new Error('Bad AI response format');
   return JSON.parse(m[0]);
 }
-function getCorrectionsPrompt() {
-  const corr = loadJSON(LS_CORR, []).slice(-20);
-  if (!corr.length) return '';
-  return '\n\nLEARNED CORRECTIONS from this user (apply them if handwriting matches):' +
-    corr.map(c => `\n- When the writing looks like "${c.wrong}", the correct drug is: ${c.right}`).join('');
-}
 async function geminiOCR(base64, mime, specialty) {
   const specLine = specialty === 'auto'
     ? 'Detect the doctor specialty from the prescription header if written.'
@@ -439,6 +580,17 @@ Return ONLY raw JSON: {"interactions":[{"severity":"major|moderate|minor","drugs
 For audit: verify each drug exists plausibly for this specialty, flag duplicate therapy, dose red flags, and illegible/low-confidence items. If no interactions: empty array.`;
   return callGemini([{ text: prompt }]);
 }
+async function rerunReview() {
+  if (!getKey() || state.busy) return;
+  if (state.items.length < 2) return;
+  try {
+    const review = await geminiReview(state.items, state.specialty);
+    state.interactions = review.interactions || [];
+    state.audit = review.audit || [];
+    renderInteractions(); renderAudit();
+    showToast('Interaction screen re-checked after your edit ✓', 'ok');
+  } catch (e) { showToast('Re-check failed: ' + (e.message || e), 'err'); }
+}
 
 /* ================= EGYPTIAN DB MATCHING ================= */
 async function apiSearchDrug(q) {
@@ -453,7 +605,8 @@ async function apiSearchDrug(q) {
 }
 function starterMatch(q) {
   let best = null, bestScore = 0;
-  for (const [en, ar, active] of STARTER_DRUGS) {
+  for (const row of STARTER_DRUGS) {
+    const en = row[0], ar = row[1], active = row[2];
     const s = Math.max(drugScore(q, en), drugScore(q, ar));
     if (s > bestScore) { bestScore = s; best = { name: en, arabic: ar, active, source: 'starter list (offline)' }; }
   }
@@ -462,16 +615,20 @@ function starterMatch(q) {
 async function matchDrug(name) {
   const cleanName = (name || '').trim();
   const firstWord = cleanName.split(/\s+/)[0] || cleanName;
-  const local = starterMatch(cleanName) || starterMatch(firstWord);
-  let api = await apiSearchDrug(cleanName);
+  const lmap = loadJSON(LS_MAP, {});
+  const learnedName = lmap['k:' + normalize(cleanName)] || lmap['k:' + normalize(firstWord)];
+  const searchName = learnedName || cleanName;
+  const local = starterMatch(searchName) || starterMatch(firstWord);
+  let api = await apiSearchDrug(searchName);
   if (!api.length && firstWord.length >= 3 && firstWord.toLowerCase() !== cleanName.toLowerCase()) {
     api = await apiSearchDrug(firstWord);
   }
   let best = null, bestScore = 0;
   for (const c of api) {
-    const s = Math.max(drugScore(name, c.name), drugScore(name, c.arabic || ''));
+    const s = Math.max(drugScore(name, c.name), drugScore(name, c.arabic || ''), learnedName ? Math.round(drugScore(learnedName, c.name) * 0.9) : 0);
     if (s > bestScore) { bestScore = s; best = c; }
   }
+  if (learnedName && best && bestScore >= 50) return { ...best, score: Math.max(bestScore, 80) };
   if (best && bestScore >= 60) return { ...best, score: bestScore };
   if (local) return { ...local, score: 70 };
   if (best) return { ...best, score: bestScore };
@@ -487,7 +644,7 @@ function fileToBase64(file) {
     reader.readAsDataURL(file);
   });
 }
-function downscale(dataUrl, maxDim) {
+function downscale(dataUrl, maxDim, quality) {
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
@@ -495,7 +652,7 @@ function downscale(dataUrl, maxDim) {
       const c = document.createElement('canvas');
       c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      resolve(c.toDataURL('image/jpeg', 0.72));
+      resolve(c.toDataURL('image/jpeg', quality || 0.72));
     };
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
@@ -503,19 +660,24 @@ function downscale(dataUrl, maxDim) {
 }
 
 /* ================= PIPELINE ================= */
-async function handleImageFile(file, mode) {
+async function handleImageFile(file, mode, existingEntry) {
   if (state.busy) { showToast('Please wait, an analysis is running...', 'info'); return; }
   const raw = await fileToBase64(file);
-  const thumb = await downscale(raw, 420);
-  const big = await downscale(raw, 1400);
+  const thumb = await downscale(raw, 420, 0.72);
+  const big = await downscale(raw, 2000, 0.85); /* higher quality = better handwriting OCR */
   const m = big.match(/^data:(image\/\w+);base64,(.+)$/);
   if (!m) { showToast('Could not process image', 'err'); return; }
   state.currentImage = thumb;
 
-  if (mode === 'save') { saveHistory({ doctor: 'Saved (not read)', specialty: '-', items: [], interactions: [], audit: [], image: thumb, date: Date.now(), unread: true }); showToast('Prescription saved to history (not read).', 'ok'); return; }
+  if (mode === 'save') {
+    saveHistory({ doctor: 'Saved (not read)', specialty: '-', items: [], interactions: [], audit: [], image: thumb, date: Date.now(), unread: true });
+    showToast('Prescription saved to history (not read).', 'ok');
+    return;
+  }
 
   if (!getKey()) { showToast('Add your free Gemini API key first (Step 1 above).', 'err'); switchTab('scan'); return; }
   state.busy = true;
+  state.currentEntry = existingEntry || null;
   resetStages();
   $('pipelineStrip').classList.remove('hidden');
   $('itemsTableCard').classList.remove('hidden');
@@ -534,19 +696,22 @@ async function handleImageFile(file, mode) {
     state.specialty = ocr.specialty || (specialty === 'auto' ? 'auto-detected' : specialty);
     state.items = (ocr.items || []).map(it => ({ ...it, match: null, status: 'pending' }));
     $('rxDoctorHeader').textContent = (state.doctor === 'Unknown doctor' ? 'Doctor: ' : 'Dr. ') + state.doctor + (state.specialty && state.specialty !== 'auto-detected' ? ' — ' + state.specialty : '');
-    $('rxLogicSummary').textContent = 'Specialty filter: ' + (specialty === 'auto' ? 'Auto-Detect' : specialty) + ' | ' + state.items.length + ' medication(s) found';
+    $('rxLogicSummary').textContent = 'Specialty hint: ' + (specialty === 'auto' ? 'Auto-Detect' : specialty) + ' | ' + state.items.length + ' medication(s) found';
     renderItems();
     setStage(1, 'done');
 
-    /* Stage 2: DB Match */
+    /* Stage 2: DB Match (parallel for speed) */
     setStage(2, 'busy'); setProgress(true, 'Step 2/4: Matching against Egyptian Drug DB (27,617 drugs)...', 45);
     let done = 0;
-    for (const it of state.items) {
+    const total = Math.max(1, state.items.length);
+    await Promise.all(state.items.map(async it => {
       it.status = 'matching'; renderItems();
       it.match = await matchDrug(it.trade_name);
-      it.status = 'done'; done++; renderItems();
-      setProgress(true, `Step 2/4: Matching drugs... (${done}/${state.items.length})`, 45 + Math.round(20 * done / Math.max(1, state.items.length)));
-    }
+      if (it.match && (it.match.score || 0) >= 60) learnMapping(it.trade_name, it.match.name);
+      it.status = 'done'; done++;
+      setProgress(true, `Step 2/4: Matching drugs... (${done}/${state.items.length})`, 45 + Math.round(20 * done / total));
+      renderItems();
+    }));
     setStage(2, 'done');
 
     /* Stage 3+4: DDI + Audit (single call, displayed separately) */
@@ -560,7 +725,12 @@ async function handleImageFile(file, mode) {
     setProgress(true, 'Done ✓', 100);
 
     $('analysisModeBadge').textContent = 'Processed';
-    saveHistory({ doctor: state.doctor, specialty: state.specialty, items: state.items, interactions: state.interactions, audit: state.audit, image: thumb, date: Date.now(), unread: false });
+    const payload = { doctor: state.doctor, specialty: state.specialty, items: state.items, interactions: state.interactions, audit: state.audit, image: thumb };
+    if (state.currentEntry) {
+      updateHistoryEntry(state.currentEntry, payload);
+    } else {
+      saveHistory({ ...payload, date: Date.now(), unread: false });
+    }
     $('rxSavedBadge').classList.remove('hidden');
     const majors = state.interactions.filter(i => i.severity === 'major').length;
     showToast(majors ? `Done — ${majors} MAJOR interaction(s) found. Check the alert below!` : 'Prescription analyzed and saved to history.', majors ? 'err' : 'ok');
@@ -571,7 +741,9 @@ async function handleImageFile(file, mode) {
     $('analysisModeBadge').textContent = 'Failed';
   } finally {
     state.busy = false;
+    state.currentEntry = null;
     setTimeout(() => setProgress(false), 1200);
+    if (!$('viewHistory').classList.contains('hidden')) renderHistory();
   }
 }
 function resetStages() { for (let i = 1; i <= 4; i++) setStage(i, 'todo'); $('interactionAlertBox').classList.add('hidden'); $('auditCard').classList.add('hidden'); }
@@ -584,10 +756,11 @@ function renderItems() {
   state.items.forEach((it, i) => {
     const row = document.createElement('div');
     const editing = it._edit;
-    row.className = 'px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center text-xs ' + (editing ? 'edit-mode' : '');
+    row.className = 'px-4 py-3.5 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center text-xs sm:text-sm ' + (editing ? 'edit-mode' : '');
+    row.style.borderBottom = '1px solid var(--border)';
     const matchHtml = it.match
-      ? `<div class="text-emerald-300 font-bold">${esc(it.match.name)}</div><div class="text-[10px] text-slate-400">${esc(it.match.source)}${it.match.arabic ? ' · ' + esc(it.match.arabic) : ''}${it.match.price ? ' · ' + esc(it.match.price) + ' EGP' : ''}</div>`
-      : (it.status === 'matching' ? '<span class="text-blue-300">matching…</span>' : '<span class="text-slate-500">no Egyptian match</span>');
+      ? `<div class="font-bold" style="color:#34d399;">${esc(it.match.name)}</div><div class="text-[10px]" style="color:var(--text-dim);">${esc(it.match.source)}${it.match.arabic ? ' · ' + esc(it.match.arabic) : ''}${it.match.price ? ' · ' + esc(it.match.price) + ' EGP' : ''}</div>`
+      : (it.status === 'matching' ? '<span style="color:#93c5fd;">matching…</span>' : '<span style="color:var(--text-dim);">no Egyptian match</span>');
     const conf = typeof it.confidence === 'number' ? it.confidence : 0.5;
     row.innerHTML = editing ? `
       <div class="sm:col-span-3"><input class="row-input" id="ed-name-${i}" value="${escAttr(it.trade_name)}" placeholder="Trade name"></div>
@@ -595,19 +768,19 @@ function renderItems() {
       <div class="sm:col-span-2"><input class="row-input" id="ed-freq-${i}" value="${escAttr(it.frequency || '')}" placeholder="e.g. 1x3"></div>
       <div class="sm:col-span-2"><input class="row-input" id="ed-dur-${i}" value="${escAttr(it.duration || '')}" placeholder="e.g. 5 days"></div>
       <div class="sm:col-span-2 flex gap-1.5 justify-end">
-        <button data-act="save" data-i="${i}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg">Save</button>
-        <button data-act="cancel" data-i="${i}" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 py-1.5 rounded-lg">✕</button>
+        <button data-act="save" data-i="${i}" class="btn btn-primary btn-sm">Save</button>
+        <button data-act="cancel" data-i="${i}" class="btn btn-neutral btn-sm">✕</button>
       </div>` : `
       <div class="sm:col-span-3">
-        <div class="font-extrabold text-white">${esc(it.trade_name)}</div>
+        <div class="font-extrabold">${esc(it.trade_name)}</div>
         <div class="mt-0.5">${matchHtml}</div>
       </div>
-      <div class="sm:col-span-3 text-slate-200">${esc(it.dosage || '—')} · ${esc(it.frequency || '?')} · ${esc(it.duration || '?')}</div>
-      <div class="sm:col-span-2 text-slate-400">${esc(it.match ? it.match.active || '—' : '—')}</div>
-      <div class="sm:col-span-2"><span class="font-bold ${confColor(conf)}">${Math.round(conf * 100)}%</span> ${it.status === 'matching' ? '<span class="text-blue-300">⏳</span>' : ''}</div>
+      <div class="sm:col-span-3">${esc(it.dosage || '—')} · ${esc(it.frequency || '?')} · ${esc(it.duration || '?')}</div>
+      <div class="sm:col-span-2" style="color:var(--text-dim);">${esc(it.match ? it.match.active || '—' : '—')}</div>
+      <div class="sm:col-span-2"><span class="font-bold ${confColor(conf)}">${Math.round(conf * 100)}%</span> ${it.status === 'matching' ? '<span style="color:#93c5fd;">⏳</span>' : ''}</div>
       <div class="sm:col-span-2 flex gap-1.5 justify-end">
-        <button data-act="edit" data-i="${i}" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold px-3 py-1.5 rounded-lg">Edit</button>
-        <button data-act="del" data-i="${i}" class="bg-rose-950 hover:bg-rose-900 border border-rose-500/40 text-rose-300 font-bold px-3 py-1.5 rounded-lg">🗑</button>
+        <button data-act="edit" data-i="${i}" class="btn btn-neutral btn-sm">Edit</button>
+        <button data-act="del" data-i="${i}" class="btn btn-danger btn-sm">🗑</button>
       </div>`;
     box.appendChild(row);
   });
@@ -615,7 +788,11 @@ function renderItems() {
 }
 function onRowAction(e) {
   const i = +e.currentTarget.dataset.i, act = e.currentTarget.dataset.act, it = state.items[i];
-  if (act === 'del') { state.items.splice(i, 1); renderItems(); return; }
+  if (act === 'del') {
+    state.items.splice(i, 1); renderItems();
+    rerunReview();
+    return;
+  }
   if (act === 'edit') { it._edit = true; renderItems(); return; }
   if (act === 'cancel') { it._edit = false; renderItems(); return; }
   if (act === 'save') {
@@ -629,36 +806,46 @@ function onRowAction(e) {
       const corr = loadJSON(LS_CORR, []);
       corr.push({ wrong: old, right: it.trade_name, date: Date.now() });
       saveJSON(LS_CORR, corr.slice(-100));
+      learnMapping(old, it.trade_name);
       showToast('Correction saved — Agent will remember this for future scans.', 'ok');
     }
     it.status = 'matching'; renderItems();
-    matchDrug(it.trade_name).then(m => { it.match = m; it.status = 'done'; renderItems(); });
+    matchDrug(it.trade_name).then(m => {
+      it.match = m;
+      if (m && (m.score || 0) >= 60) learnMapping(it.trade_name, m.name);
+      it.status = 'done'; renderItems();
+      rerunReview();
+    });
   }
 }
 function renderInteractions() {
-  const box = $('interactionAlertBox'), body = $('interactionBody');
+  const box = $('interactionAlertBox'), body = $('interactionBody'), head = $('interactionHeaderWrap');
   if (!state.interactions.length) {
-    box.className = 'rounded-3xl p-4 border-2 space-y-2 border-emerald-500/40 bg-emerald-950/30';
-    box.querySelector('div.flex.items-center.gap-2').innerHTML = '<span class="text-xl">✅</span><span class="text-emerald-300 font-extrabold text-sm sm:text-base">No significant drug-drug interactions detected</span>';
-    $('interactionSeverity').textContent = 'None'; $('interactionSeverity').className = 'text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-600 text-white';
-    body.innerHTML = '<p class="text-emerald-200">AI screening found no major/moderate interactions between these active ingredients. Always verify manually: <a href="' + DRUGS_COM_URL + '" target="_blank" rel="noopener" class="underline font-bold">Drugs.com Interaction Checker ↗</a></p>';
+    box.className = 'card !border-2 p-5 space-y-3';
+    box.style.borderColor = 'rgba(16,185,129,.5)';
+    box.style.background = 'rgba(16,185,129,.05)';
+    head.innerHTML = '<span class="text-xl">✅</span><span class="font-extrabold text-sm sm:text-base" style="color:#34d399;">No significant drug-drug interactions detected</span>';
+    $('interactionSeverity').textContent = 'None'; $('interactionSeverity').className = 'pill pill-ok';
+    body.innerHTML = '<p style="color:#a7f3d0;">AI screening found no major/moderate interactions between these active ingredients. Always verify manually: <a href="' + DRUGS_COM_URL + '" target="_blank" rel="noopener" class="underline font-bold" style="color:#93c5fd;">Drugs.com Interaction Checker ↗</a></p>';
     box.classList.remove('hidden'); return;
   }
   const worst = state.interactions.some(x => x.severity === 'major') ? 'major' : state.interactions.some(x => x.severity === 'moderate') ? 'moderate' : 'minor';
-  box.className = 'rounded-3xl p-4 border-2 space-y-2 border-rose-500/60 bg-rose-950/40';
-  box.querySelector('div.flex.items-center.gap-2').innerHTML = '<span class="text-xl">⚠️</span><span class="text-rose-300 font-extrabold text-sm sm:text-base">Drug-Drug Interaction Alert</span>';
+  box.className = 'card !border-2 p-5 space-y-3';
+  box.style.borderColor = 'rgba(248,113,113,.55)';
+  box.style.background = 'rgba(248,113,113,.06)';
+  head.innerHTML = '<span class="text-xl">⚠️</span><span class="font-extrabold text-sm sm:text-base" style="color:#fca5a5;">Drug-Drug Interaction Alert</span>';
   $('interactionSeverity').textContent = worst.toUpperCase();
-  $('interactionSeverity').className = 'text-xs font-extrabold px-2.5 py-1 rounded-full ' + (worst === 'major' ? 'bg-rose-600 text-white' : worst === 'moderate' ? 'bg-amber-500 text-slate-950' : 'bg-yellow-500 text-slate-950');
+  $('interactionSeverity').className = 'pill ' + (worst === 'major' ? 'sev-major' : worst === 'moderate' ? 'sev-moderate' : 'sev-minor');
   body.innerHTML = state.interactions.map(x =>
-    `<div class="text-rose-100"><span class="font-extrabold uppercase text-[10px] px-1.5 py-0.5 rounded ${x.severity === 'major' ? 'bg-rose-600' : x.severity === 'moderate' ? 'bg-amber-500 text-slate-950' : 'bg-yellow-500 text-slate-950'}">${esc(x.severity)}</span> <b>${esc(x.drugs)}</b> — ${esc(x.description)}</div>`
-  ).join('') + `<p class="pt-1 text-rose-200/80">Verify each pair on <a href="${DRUGS_COM_URL}" target="_blank" rel="noopener" class="underline font-bold">Drugs.com ↗</a></p>`;
+    `<div><span class="pill ${x.severity === 'major' ? 'sev-major' : x.severity === 'moderate' ? 'sev-moderate' : 'sev-minor'} !text-[10px] !py-0.5 !px-1.5 uppercase">${esc(x.severity)}</span> <b>${esc(x.drugs)}</b> — <span style="color:#fecaca;">${esc(x.description)}</span></div>`
+  ).join('') + `<p class="pt-1" style="color:#fecaca;">Verify each pair on <a href="${DRUGS_COM_URL}" target="_blank" rel="noopener" class="underline font-bold" style="color:#93c5fd;">Drugs.com ↗</a></p>`;
   box.classList.remove('hidden');
 }
 function renderAudit() {
   const list = $('finalAuditList');
   list.innerHTML = state.audit.length
-    ? state.audit.map(a => `<div class="bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-200">${esc(a)}</div>`).join('')
-    : '<div class="bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-400">No audit notes returned.</div>';
+    ? state.audit.map(a => `<div class="card-soft px-3.5 py-2.5">${esc(a)}</div>`).join('')
+    : '<div class="card-soft px-3.5 py-2.5" style="color:var(--text-dim);">No audit notes returned.</div>';
   $('auditCard').classList.remove('hidden');
 }
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -671,47 +858,59 @@ function saveHistory(entry) {
   h.unshift(entry);
   while (h.length > 50) h.pop();
   if (!saveJSON(LS_HIST, h)) {
-    h.forEach(x => delete x.image);
+    h.forEach(x => delete x.image); /* storage full: keep data, drop oldest images */
     saveJSON(LS_HIST, h);
-    showToast('Storage full — oldest images were removed (data kept).', 'info');
+    showToast('Storage full — images were removed (data kept). Try reading fewer unread at once.', 'info');
   }
   renderHistoryBadge();
 }
-function renderHistoryBadge() { $('totalHistoryBadge').textContent = getHistory().length; }
+function updateHistoryEntry(entry, data) {
+  const all = getHistory();
+  const idx = all.findIndex(x => x.date === entry.date);
+  if (idx > -1) { Object.assign(all[idx], data, { unread: false }); saveJSON(LS_HIST, all); }
+  renderHistoryBadge();
+}
+function renderHistoryBadge() {
+  const h = getHistory();
+  $('totalHistoryBadge').textContent = h.length;
+  $('unreadCountBadge').textContent = h.filter(x => x.unread).length;
+}
 function renderHistory() {
   const q = normalize($('historySearchInput').value || '');
   const list = getHistory().filter(h => !q || normalize(JSON.stringify(h.items.map(i => i.trade_name)) + h.doctor + new Date(h.date).toLocaleDateString()).includes(q));
   const box = $('historyCardsList');
-  if (!list.length) { box.innerHTML = '<div class="text-center text-slate-500 text-sm py-8">No prescriptions saved yet.<br>Scan one from the Scan tab!</div>'; return; }
+  const corrN = loadJSON(LS_CORR, []).length;
+  const mapN = Object.keys(loadJSON(LS_MAP, {})).length;
+  $('learnCountText').textContent = `Learning memory: ${corrN} correction(s), ${mapN} drug mapping(s)`;
+  if (!list.length) { box.innerHTML = '<div class="text-center py-10 text-sm" style="color:var(--text-dim);">No prescriptions saved yet.<br>Scan one from the Scan tab, or bulk-upload old ones with Training Mode!</div>'; return; }
   box.innerHTML = '';
   list.forEach(h => {
     const d = new Date(h.date);
     const majors = (h.interactions || []).filter(x => x.severity === 'major').length;
     const card = document.createElement('div');
-    card.className = 'bg-slate-950/70 border border-slate-800 rounded-2xl p-3.5 flex gap-3 items-start';
+    card.className = 'card-soft p-3.5 flex gap-3 items-start';
     card.innerHTML = `
-      ${h.image ? `<img src="${h.image}" class="w-16 h-16 rounded-xl object-cover border border-slate-700 shrink-0" alt="">` : '<div class="w-16 h-16 rounded-xl bg-slate-800 flex items-center justify-center text-xl shrink-0">🗂️</div>'}
+      ${h.image ? `<img src="${h.image}" class="w-16 h-16 rounded-xl object-cover shrink-0" style="border:1px solid var(--border);" alt="">` : '<div class="w-16 h-16 rounded-xl flex items-center justify-center text-xl shrink-0" style="background:var(--surface-3);">🗐️</div>'}
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="font-extrabold text-white text-sm truncate">${esc(h.doctor || 'Unknown doctor')}</span>
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          ${h.unread ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Saved only</span>' : ''}
-          ${majors ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-600 text-white pulse-badge">${majors} MAJOR DDI</span>` : ''}
+          <span class="font-extrabold text-sm truncate">${esc(h.doctor || 'Unknown doctor')}</span>
+          <span class="pill" style="background:var(--surface-3); color:var(--text-dim);">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          ${h.unread ? '<span class="pill pill-warn">Saved only</span>' : ''}
+          ${majors ? `<span class="pill sev-major pulse-badge">${majors} MAJOR DDI</span>` : ''}
         </div>
-        <div class="text-xs text-slate-400 mt-1">${esc((h.specialty || '').toString())} · ${(h.items || []).length} medication(s)${(h.items || []).length ? ': ' + esc(h.items.map(i => i.trade_name).join(', ')).slice(0, 90) : ''}</div>
+        <div class="text-xs mt-1.5" style="color:var(--text-dim);">${esc((h.specialty || '').toString())} · ${(h.items || []).length} medication(s)${(h.items || []).length ? ': ' + esc(h.items.map(i => i.trade_name).join(', ')).slice(0, 90) : ''}</div>
       </div>
       <div class="flex flex-col sm:flex-row gap-1.5 shrink-0">
-        <button data-open class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">${h.unread ? '🔍 Read Now' : '↗ Open'}</button>
-        <button data-del class="bg-rose-950 hover:bg-rose-900 border border-rose-500/40 text-rose-300 text-xs font-bold px-2.5 py-1.5 rounded-lg">🗑</button>
+        <button data-open class="btn btn-primary btn-sm">${h.unread ? '🔍 Read Now' : '↗ Open'}</button>
+        <button data-del class="btn btn-danger btn-sm">🗑</button>
       </div>`;
     card.querySelector('[data-open]').addEventListener('click', async () => {
       switchTab('scan');
       if (h.unread && h.image) {
-        // Convert base64 thumb back to Blob/File and analyze it now!
         const res = await fetch(h.image);
         const blob = await res.blob();
         const file = new File([blob], 'Saved_History_Rx.jpg', { type: blob.type || 'image/jpeg' });
-        await handleImageFile(file, 'read');
+        await handleImageFile(file, 'read', h); /* updates the same history entry, no duplicates */
       } else {
         state.doctor = h.doctor || 'Unknown doctor';
         state.specialty = h.specialty || 'auto';
@@ -740,6 +939,26 @@ function renderHistory() {
   });
 }
 
+/* ================= TRAINING (BULK) ================= */
+async function blobUrlToFile(dataUrl, name) {
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  return new File([blob], name, { type: blob.type || 'image/jpeg' });
+}
+async function readAllUnread() {
+  const unread = getHistory().filter(h => h.unread && h.image);
+  if (!unread.length) { showToast('No unread prescriptions in History.', 'info'); return; }
+  if (!getKey()) { showToast('Add your free Gemini API key first (Step 1 in Scan tab).', 'err'); switchTab('scan'); return; }
+  switchTab('scan');
+  for (let i = 0; i < unread.length; i++) {
+    showToast(`Training: reading ${i + 1}/${unread.length}...`, 'info');
+    const file = await blobUrlToFile(unread[i].image, 'Training_Rx_' + (i + 1) + '.jpg');
+    await handleImageFile(file, 'read', unread[i]);
+  }
+  showToast('Training batch complete ✓ Agent learned from all stored prescriptions.', 'ok');
+  renderHistory();
+}
+
 /* ================= DRUG DB SEARCH ================= */
 let dbTimer = null;
 async function searchDb() {
@@ -759,12 +978,12 @@ async function searchDb() {
   }
   if (!results.length) return;
   box.innerHTML = results.map(r => `
-    <div class="bg-slate-950/70 border border-slate-800 rounded-xl px-3.5 py-2.5">
+    <div class="card-soft px-4 py-3">
       <div class="flex items-center justify-between gap-2">
-        <span class="font-extrabold text-white text-sm">${esc(r.name)}</span>
-        ${r.price ? `<span class="text-[11px] font-bold text-emerald-300 shrink-0">${esc(r.price)} EGP</span>` : ''}
+        <span class="font-extrabold text-sm">${esc(r.name)}</span>
+        ${r.price ? `<span class="text-[11px] font-bold shrink-0" style="color:#34d399;">${esc(r.price)} EGP</span>` : ''}
       </div>
-      <div class="text-xs text-slate-400 mt-0.5">${r.arabic ? esc(r.arabic) + ' · ' : ''}<span class="text-blue-300">${esc(r.active || '')}</span>${r.company ? ' · ' + esc(r.company) : ''}</div>
+      <div class="text-xs mt-1" style="color:var(--text-dim);">${r.arabic ? esc(r.arabic) + ' · ' : ''}<span style="color:#93c5fd;">${esc(r.active || '')}</span>${r.company ? ' · ' + esc(r.company) : ''}</div>
     </div>`).join('');
 }
 
@@ -824,6 +1043,7 @@ async function runDemo(n) {
   for (const it of state.items) {
     it.status = 'matching'; renderItems();
     it.match = await matchDrug(it.trade_name) || starterMatch(it.trade_name) || { name: it.trade_name + ' (unverified)', active: '—', source: 'unverified', score: 0 };
+    if (it.match && (it.match.score || 0) >= 60 && !it.match.name.includes('unverified')) learnMapping(it.trade_name, it.match.name);
     it.status = 'done'; renderItems();
     await new Promise(r => setTimeout(r, 250));
   }
@@ -847,11 +1067,9 @@ function switchTab(name) {
   const map = { scan: ['viewScan', 'tabBtnScan'], history: ['viewHistory', 'tabBtnHistory'], db: ['viewDb', 'tabBtnDb'] };
   Object.keys(map).forEach(k => {
     $(map[k][0]).classList.toggle('hidden', k !== name);
-    $(map[k][1]).className = k === name
-      ? 'tab-active py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5'
-      : 'text-slate-300 hover:text-white py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5';
+    $(map[k][1]).classList.toggle('tab-active', k === name);
   });
-  if (name === 'history') renderHistory();
+  if (name === 'history') { renderHistory(); renderHistoryBadge(); }
 }
 
 /* ================= WIRING ================= */
@@ -863,7 +1081,7 @@ $('btnCloseToast').addEventListener('click', () => $('toastBanner').classList.ad
 
 function saveKeyFrom(inputEl) {
   const v = inputEl.value.trim();
-  if (!v.startsWith('AIza')) { showToast('Key should start with AIza... — check you copied it fully.', 'err'); return; }
+  if (!v.toLowerCase().startsWith('aq')) { showToast('Key should start with aq... — check you copied it fully.', 'err'); return; }
   localStorage.setItem(LS_KEY, v);
   refreshKeyUI();
   $('inlineApiKeyInput').value = v;
@@ -890,6 +1108,12 @@ $('galleryRxInput').addEventListener('change', e => {
 $('btnCancelInlineChoice').addEventListener('click', () => { pendingFiles = []; $('inlineGalleryChoiceBox').classList.add('hidden'); });
 $('btnInlineReadNow').addEventListener('click', async () => {
   $('inlineGalleryChoiceBox').classList.add('hidden');
+  if (!getKey()) {
+    pendingFiles = [];
+    showToast('Add your free Gemini API key first (Step 1 above).', 'err');
+    switchTab('scan');
+    return;
+  }
   for (const f of pendingFiles) await handleImageFile(f, 'read');
   pendingFiles = [];
 });
@@ -898,6 +1122,35 @@ $('btnInlineSaveOnly').addEventListener('click', async () => {
   for (const f of pendingFiles) await handleImageFile(f, 'save');
   pendingFiles = [];
 });
+
+/* Training mode wiring */
+$('trainingInput').addEventListener('change', e => {
+  pendingTrainFiles = Array.from(e.target.files).slice(0, MAX_TRAIN_FILES);
+  if (!pendingTrainFiles.length) return;
+  $('trainChoiceTitle').textContent = pendingTrainFiles.length + ' training image(s) ready (max ' + MAX_TRAIN_FILES + '). Choose action:';
+  $('trainChoiceBox').classList.remove('hidden');
+  e.target.value = '';
+});
+$('btnCancelTrainChoice').addEventListener('click', () => { pendingTrainFiles = []; $('trainChoiceBox').classList.add('hidden'); });
+$('btnTrainSaveOnly').addEventListener('click', async () => {
+  $('trainChoiceBox').classList.add('hidden');
+  for (const f of pendingTrainFiles) await handleImageFile(f, 'save');
+  showToast(pendingTrainFiles.length + ' prescription(s) stored for later reading.', 'ok');
+  pendingTrainFiles = [];
+});
+$('btnTrainReadAll').addEventListener('click', async () => {
+  $('trainChoiceBox').classList.add('hidden');
+  if (!getKey()) {
+    pendingTrainFiles = [];
+    showToast('Add your free Gemini API key first (Step 1 above).', 'err');
+    switchTab('scan');
+    return;
+  }
+  for (const f of pendingTrainFiles) await handleImageFile(f, 'read');
+  showToast('Training batch complete ✓ Agent learned from ' + pendingTrainFiles.length + ' prescription(s).', 'ok');
+  pendingTrainFiles = [];
+});
+$('btnReadAllUnread').addEventListener('click', readAllUnread);
 
 $('btnAddRow').addEventListener('click', () => {
   state.items.push({ trade_name: 'New drug', dosage: '', frequency: '', duration: '', confidence: 0.5, match: null, status: 'done', _edit: true });
