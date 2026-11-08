@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Rx Clinical AI Agent - Egyptian Prescription Reader</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+  .tab-active { background-color: #2563eb; color: #ffffff; box-shadow: 0 4px 12px rgba(37,99,235,0.35); }
+  .pulse-badge { animation: softPulse 2s infinite; }
+  @keyframes softPulse { 0%,100% { opacity: 1; } 50% { opacity: .72; } }
+  .spinner { border: 3px solid rgba(255,255,255,.15); border-top-color: #3b82f6; border-radius: 50%; width: 16px; height: 16px; animation: spin .8s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .row-input { background: #020617; border: 1px solid #334155; border-radius: .5rem; padding: .3rem .5rem; font-size: .75rem; color: #fff; width: 100%; }
+  .row-input:focus { border-color: #3b82f6; outline: none; }
+  .edit-mode { background: rgba(59,130,246,.08); }
+</style>
+</head>
+<body class="min-h-screen pb-24">
+
+<!-- Top App Bar -->
+<header class="sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-3">
+  <div class="max-w-3xl mx-auto flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2.5">
+      <div class="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-lg font-extrabold shadow-lg shadow-blue-600/30">Rx</div>
+      <div>
+        <h1 class="text-base sm:text-lg font-extrabold text-white leading-tight">Rx Clinical AI Agent</h1>
+        <p class="text-xs text-slate-400">Egyptian Drug DB (eg-drugs) + DDI Screen + Double Verification</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btnOpenHistoryShortcut" type="button" class="bg-emerald-950/90 border border-emerald-500/40 rounded-xl px-3 py-1.5 text-left hover:bg-emerald-900/60 transition">
+        <div class="text-[10px] uppercase tracking-wider text-emerald-300 font-semibold">Saved Rx History</div>
+        <div class="text-sm font-extrabold text-emerald-400 flex items-center gap-1"><span id="totalHistoryBadge">0</span><span class="text-xs font-normal">Rx</span></div>
+      </button>
+      <button id="btnOpenApiModal" type="button" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition" title="Configure Free Gemini API Key">
+        &#128273; <span id="apiStatusDot" class="inline-block w-2 h-2 rounded-full bg-amber-400 ml-1"></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-3xl mx-auto px-4 pt-4 space-y-4">
+
+  <!-- Tabs -->
+  <nav class="grid grid-cols-3 gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
+    <button id="tabBtnScan" type="button" class="tab-active py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5"><span>&#128247;</span><span>Scan</span></button>
+    <button id="tabBtnHistory" type="button" class="text-slate-300 hover:text-white py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5"><span>&#128450;&#65039;</span><span>History</span></button>
+    <button id="tabBtnDb" type="button" class="text-slate-300 hover:text-white py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5"><span>&#128138;</span><span>Drug DB</span></button>
+  </nav>
+
+  <!-- Toast -->
+  <div id="toastBanner" class="hidden rounded-2xl p-3.5 border text-sm font-bold flex items-center justify-between transition-all">
+    <span id="toastText"></span>
+    <button id="btnCloseToast" type="button" class="text-xs underline opacity-80 hover:opacity-100 ml-3 shrink-0">Dismiss</button>
+  </div>
+
+  <!-- ============ VIEW 1: SCAN ============ -->
+  <section id="viewScan" class="space-y-4">
+
+    <!-- API Key Bar -->
+    <div id="inlineApiBar" class="bg-blue-950/70 border-2 border-blue-500/50 rounded-3xl p-4 space-y-2.5 shadow-lg">
+      <div class="flex items-center justify-between gap-2">
+        <div class="text-xs sm:text-sm font-extrabold text-blue-200 flex items-center gap-2"><span>&#128273;</span><span>Step 1: Paste Your Free Gemini API Key (stored only on your phone)</span></div>
+        <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-900/80 text-emerald-300 border border-emerald-500/40">27,617 Egyptian Drugs (Live)</span>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input id="inlineApiKeyInput" type="text" style="-webkit-text-security: disc;" autocomplete="off" placeholder="AIzaSy... get it free at aistudio.google.com" class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white font-mono focus:border-blue-400 focus:outline-none" />
+        <button id="btnInlineSaveKey" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition shrink-0">Activate AI Agent</button>
+      </div>
+      <p class="text-[11px] text-slate-400">Never share this key with anyone. It stays in your browser localStorage.</p>
+    </div>
+
+    <!-- Capture Card -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3.5 shadow-xl">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="text-base font-extrabold text-white">Capture or Select Prescription</h2>
+          <p class="text-xs text-slate-400">Camera reads immediately. Gallery lets you Read Now or Save to DB only.</p>
+        </div>
+        <div class="flex items-center gap-2 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700">
+          <label for="specialtySelect" class="text-xs text-slate-300 font-bold whitespace-nowrap">Specialty:</label>
+          <select id="specialtySelect" class="bg-transparent text-xs font-extrabold text-blue-400 focus:outline-none">
+            <option value="auto">Auto-Detect</option>
+            <option value="internal medicine">Internal Medicine & GI</option>
+            <option value="orthopedics">Orthopedics</option>
+            <option value="pediatrics">Pediatrics</option>
+            <option value="cardiology">Cardiology</option>
+            <option value="dermatology">Dermatology</option>
+            <option value="ENT">ENT</option>
+            <option value="general practice">General Practice</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div class="relative overflow-hidden bg-blue-600 hover:bg-blue-500 active:scale-[0.99] text-white font-extrabold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2.5 shadow-lg shadow-blue-600/25 transition text-sm cursor-pointer">
+          <span class="text-lg">&#128247;</span>
+          <div class="text-left"><div>Take Photo (Auto-Read)</div><div class="text-[11px] font-normal text-blue-100">Reads immediately & saves</div></div>
+          <input id="cameraRxInput" type="file" accept="image/*" capture="environment" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+        </div>
+        <div class="relative overflow-hidden bg-slate-800 hover:bg-slate-700 active:scale-[0.99] text-emerald-300 border border-emerald-500/30 font-extrabold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2.5 transition text-sm cursor-pointer">
+          <span class="text-lg">&#128241;</span>
+          <div class="text-left"><div>Choose from Phone</div><div class="text-[11px] font-normal text-slate-400">Read OR Save to History only</div></div>
+          <input id="galleryRxInput" type="file" accept="image/*" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+        </div>
+      </div>
+
+      <!-- Gallery Choice Box -->
+      <div id="inlineGalleryChoiceBox" class="hidden bg-slate-950 border-2 border-emerald-500/60 rounded-2xl p-4 space-y-3 shadow-xl">
+        <div class="flex items-center justify-between">
+          <div class="text-sm font-extrabold text-emerald-300" id="inlineChoiceTitle">Image selected! Choose action:</div>
+          <button id="btnCancelInlineChoice" type="button" class="text-xs text-slate-400 hover:text-white font-bold">&#10005; Cancel</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button id="btnInlineReadNow" type="button" class="bg-blue-600 hover:bg-blue-500 text-white font-extrabold py-3 px-4 rounded-xl text-left flex items-center justify-between transition">
+            <div><div class="text-xs sm:text-sm">1. Read &amp; Analyze Now</div><div class="text-[11px] font-normal text-blue-100">OCR, DB match, DDI, double-check</div></div><span class="text-lg">&#128269;</span>
+          </button>
+          <button id="btnInlineSaveOnly" type="button" class="bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 font-extrabold py-3 px-4 rounded-xl text-left flex items-center justify-between transition">
+            <div><div class="text-xs sm:text-sm">2. Save to History Only</div><div class="text-[11px] font-normal text-emerald-200/80">Store image without reading</div></div><span class="text-lg">&#128452;&#65039;</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Progress Box -->
+      <div id="liveProgressBox" class="hidden bg-blue-950/80 border border-blue-400/50 rounded-2xl p-3.5 space-y-2">
+        <div class="flex items-center justify-between text-xs sm:text-sm font-extrabold text-blue-200">
+          <span id="liveProgressStepText" class="flex items-center gap-2"><span class="spinner"></span> Step 1/4: Reading prescription handwriting...</span>
+          <span id="liveProgressPercent" class="text-emerald-300">25%</span>
+        </div>
+        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden"><div id="liveProgressBar" class="h-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-300" style="width: 25%"></div></div>
+      </div>
+
+      <!-- Demos -->
+      <div class="pt-2 border-t border-slate-800/80">
+        <div class="text-xs text-slate-400 font-semibold mb-2">Test without API key (offline demos):</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button data-demo="1" type="button" class="demo-btn py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-blue-500/40 text-xs font-bold text-blue-300 transition truncate">1. Internal (DDI)</button>
+          <button data-demo="2" type="button" class="demo-btn py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-300 transition truncate">2. Ortho (Major)</button>
+          <button data-demo="3" type="button" class="demo-btn py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-300 transition truncate">3. Peds (Liquids)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Card -->
+    <div id="uploadedPreviewCard" class="hidden bg-slate-900 border border-blue-500/40 rounded-3xl p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="text-sm font-extrabold text-blue-300 flex items-center gap-2"><span>&#128444;&#65039;</span><span id="uploadedFileName">Uploaded Prescription</span></div>
+        <span id="analysisModeBadge" class="text-xs px-2.5 py-1 rounded-full bg-blue-950 text-blue-300 border border-blue-700 font-semibold">Processed</span>
+      </div>
+      <img id="uploadedRxImg" src="" alt="Prescription Preview" class="max-w-full h-auto max-h-56 mx-auto rounded-2xl border border-slate-700 object-contain" />
+    </div>
+
+    <!-- Pipeline Strip -->
+    <div id="pipelineStrip" class="hidden bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">&#128105;&#8205;&#9877;&#65039;</span>
+          <div>
+            <div id="rxDoctorHeader" class="text-sm font-extrabold text-white">Unknown doctor</div>
+            <div id="rxLogicSummary" class="text-xs text-emerald-400 font-semibold">Specialty filter: Auto</div>
+          </div>
+        </div>
+        <span id="rxSavedBadge" class="hidden text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">&#10003; Saved to History</span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 text-[11px] font-bold">
+        <div id="stagePill1" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 flex items-center gap-1.5"><span class="st-ico text-slate-500">1.</span> Handwriting OCR</div>
+        <div id="stagePill2" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 flex items-center gap-1.5"><span class="st-ico text-slate-500">2.</span> Egyptian DB Match</div>
+        <div id="stagePill3" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 flex items-center gap-1.5"><span class="st-ico text-slate-500">3.</span> DDI Screen</div>
+        <div id="stagePill4" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 flex items-center gap-1.5"><span class="st-ico text-slate-500">4.</span> Double-Check</div>
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <div id="itemsTableCard" class="hidden bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+      <div class="px-4 py-3 bg-slate-800/70 border-b border-slate-800 flex items-center justify-between gap-2">
+        <div>
+          <h3 class="text-sm sm:text-base font-extrabold text-white">Extracted Medications &amp; Dosages</h3>
+          <p class="text-xs text-slate-400">Tap Edit on any row to correct it — the Agent learns automatically and improves next scans.</p>
+        </div>
+        <button id="btnAddRow" type="button" class="text-xs font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-xl transition shrink-0">+ Add Row</button>
+      </div>
+      <div class="hidden sm:grid sm:grid-cols-12 gap-2 px-4 py-2 bg-slate-950/60 border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        <div class="col-span-3">As Written &#8594; Egyptian Match</div>
+        <div class="col-span-3">Dosage &amp; Regimen</div>
+        <div class="col-span-2">Active Ingredient</div>
+        <div class="col-span-2">Confidence</div>
+        <div class="col-span-2 text-right">Actions</div>
+      </div>
+      <div id="rxItemsContainer" class="divide-y divide-slate-800"></div>
+    </div>
+
+    <!-- DDI Box -->
+    <div id="interactionAlertBox" class="hidden rounded-3xl p-4 border-2 space-y-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2 font-extrabold text-sm sm:text-base"><span class="text-xl">&#9888;&#65039;</span><span>Drug-Drug Interaction Screen</span></div>
+        <div class="flex items-center gap-2">
+          <span id="interactionSeverity" class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-rose-600 text-white">-</span>
+          <a href="https://www.drugs.com/drug_interactions.html" target="_blank" rel="noopener" class="text-xs font-bold underline text-blue-300 hover:text-blue-200">Verify on Drugs.com &#8599;</a>
+        </div>
+      </div>
+      <div id="interactionBody" class="text-xs sm:text-sm leading-relaxed space-y-1.5"></div>
+    </div>
+
+    <!-- Audit Card -->
+    <div id="auditCard" class="hidden bg-slate-900 border border-emerald-500/40 rounded-3xl p-4 space-y-2.5 shadow-lg">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2"><span class="text-lg">&#128737;&#65039;</span><h3 class="text-sm sm:text-base font-extrabold text-white">Stage 4: Self-Verification &amp; Clinical Sense Audit</h3></div>
+        <span id="finalAuditBadge" class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">Double-Check Complete</span>
+      </div>
+      <div id="finalAuditList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"></div>
+    </div>
+
+  </section>
+
+  <!-- ============ VIEW 2: HISTORY ============ -->
+  <section id="viewHistory" class="hidden space-y-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="text-base font-extrabold text-white">Prescription History &amp; Learning Memory</h2>
+          <p class="text-xs text-slate-400">Stored on your phone only. Your corrections train the Agent for future scans.</p>
+        </div>
+        <input id="historySearchInput" type="text" placeholder="Filter by drug, doctor, date..." class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none" />
+      </div>
+      <div id="historyCardsList" class="space-y-2.5"></div>
+    </div>
+  </section>
+
+  <!-- ============ VIEW 3: DRUG DB ============ -->
+  <section id="viewDb" class="hidden space-y-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3.5">
+      <div>
+        <h2 class="text-base font-extrabold text-white">Egyptian Drug Database</h2>
+        <p class="text-xs text-slate-400">Live search across 27,617+ drugs marketed in Egypt (English, Arabic, or active ingredient). Type at least 2 characters.</p>
+      </div>
+      <input id="dbSearchInput" type="text" placeholder="e.g. concor, كونكور, or metformin..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-3 text-sm text-white focus:border-blue-500 focus:outline-none" />
+      <div id="dbResultsMeta" class="text-xs text-slate-400 font-semibold"></div>
+      <div id="dbResultsList" class="space-y-2"></div>
+      <p class="text-[10px] text-slate-500 pt-2 border-t border-slate-800">Drug data: <span class="text-slate-400">Egyptian Drug Database (eg-drugs) by Mahmoud Mohamed &#8212; CC BY 4.0</span>. Prices in EGP.</p>
+    </div>
+  </section>
+
+</main>
+
+<!-- API Key Modal -->
+<div id="apiModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-slate-900 border border-slate-700 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl">
+    <div class="flex items-center justify-between">
+      <h3 class="text-base font-extrabold text-white">Gemini API Key Setup</h3>
+      <button id="btnCloseApiModal" type="button" class="text-slate-400 hover:text-white font-bold">&#10005;</button>
+    </div>
+    <ol class="text-xs text-slate-300 space-y-1.5 list-decimal list-inside">
+      <li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-blue-400 underline">aistudio.google.com/apikey</a> (free)</li>
+      <li>Click "Create API Key" and copy it</li>
+      <li>Paste it below and press Save</li>
+    </ol>
+    <input id="modalApiKeyInput" type="text" style="-webkit-text-security: disc;" autocomplete="off" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:border-blue-400 focus:outline-none" />
+    <div class="flex gap-2">
+      <button id="btnModalSaveKey" type="button" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-2.5 rounded-xl text-sm transition">Save Key</button>
+      <button id="btnClearKey" type="button" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-4 py-2.5 rounded-xl text-sm transition">Clear</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const EG_DRUGS_API = 'https://eg-drugs-api.mahmoudfalous.workers.dev/v1/search';
+const DRUGS_COM_URL = 'https://www.drugs.com/drug_interactions.html';
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+const LS_KEY = 'rx_gemini_key', LS_HIST = 'rx_history', LS_CORR = 'rx_corrections';
+
+/* Offline fallback starter list: [tradeName, arabic, activeIngredient] */
+const STARTER_DRUGS = [
+  ['panadol','بانادول','paracetamol'],['panadol extra','بانادول اكسترا','paracetamol+caffeine'],
+  ['adol','ادول','paracetamol'],['cetal','سيتال','paracetamol'],
+  ['augmentin','اوجمنتين','amoxicillin+clavulanic acid'],['hiconcil','هايكونسيل','amoxicillin'],
+  ['klacid','كلاسيد','clarithromycin'],['zithromax','زيثروماكس','azithromycin'],
+  ['flagyl','فلاجيل','metronidazole'],['ciprofar','سيبروفار','ciprofloxacin'],
+  ['zinnat','زينات','cefuroxime'],['suprax','سوبراكس','cefixime'],
+  ['vibramycin','فيبراميسين','doxycycline'],
+  ['cataflam','كاتافلام','diclofenac potassium'],['voltaren','فولتارين','diclofenac'],
+  ['brufen','بروفين','ibuprofen'],['feldene','فيلدين','piroxicam'],
+  ['norgesic','نورجيزيك','orphenadrine+paracetamol'],['no-spa','نو سبا','drotaverine'],
+  ['buscopan','بسكوبان','hyoscine butylbromide'],['mydocalm','ميدوكالم','tolperisone'],
+  ['duspatalin','ديوسباتالين','mebeverine'],['motilium','موتيليوم','domperidone'],
+  ['primperan','بريمبيران','metoclopramide'],['antinal','انتينال','nifuroxazide'],
+  ['smecta','سميكتا','diosmectite'],
+  ['nexium','نيكسيوم','esomeprazole'],['losec','لوسيك','omeprazole'],
+  ['antodine','انتودين','famotidine'],
+  ['concor','كونكور','bisoprolol'],['norvasc','نورفاسك','amlodipine'],
+  ['capoten','كابوتين','captopril'],['coversyl','كوفرسيل','perindopril'],
+  ['diovan','ديوفان','valsartan'],['co-diovan','كو ديوفان','valsartan+hydrochlorothiazide'],
+  ['lasix','لاسيكس','furosemide'],['aldactone','الداكتون','spironolactone'],
+  ['plavix','بلاميكس','clopidogrel'],['aspirin','اسبيرين','acetylsalicylic acid'],
+  ['lipitor','ليبيتور','atorvastatin'],['crestor','كريستور','rosuvastatin'],
+  ['eltroxin','التروكسين','levothyroxine'],
+  ['glucophage','جلوكوفاج','metformin'],['amaryl','اماريل','glimepiride'],
+  ['januvia','جانوفيا','sitagliptin'],['galvus met','جالفوس ميت','vildagliptin+metformin'],
+  ['humulin','هيوميولين','insulin human'],
+  ['ventolin','فينتولين','salbutamol'],['seretide','سيريتيد','fluticasone+salmeterol'],
+  ['symbicort','سيمبيكورت','budesonide+formoterol'],
+  ['zyrtec','زيرتك','cetirizine'],['xyzal','كسيزال','levocetirizine'],
+  ['telfast','تيلفاست','fexofenadine'],['aerius','ايريوس','desloratadine'],
+  ['atarax','اتاراكس','hydroxyzine'],['phenergan','فينيرغان','promethazine'],
+  ['singulair','سينجولير','montelukast'],
+  ['daflon','دافلون','diosmin+hesperidin'],['canesten','كانستين','clotrimazole'],
+  ['fucidin','فوسيدين','fusidic acid'],['zyloric','زيلوريك','allopurinol'],
+  ['megamox','ميجاموكس','amoxicillin+clavulanic acid'],['ciprobid','سيبروبيد','ciprofloxacin'],
+  ['levoxin','ليفوكسين','levofloxacin'],['moxiflox','موكسيفلوكس','moxifloxacin'],
+  ['ultracet','ألتراسيت','tramadol+paracetamol']
+];
+
+/* ================= STATE ================= */
+let state = { items: [], doctor: 'Unknown doctor', specialty: 'auto', interactions: [], audit: [], currentImage: null, busy: false };
+let pendingFiles = [];
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+function showToast(msg, type) {
+  const colors = { ok: 'border-emerald-500/50 bg-emerald-950/80 text-emerald-200', err: 'border-rose-500/50 bg-rose-950/80 text-rose-200', info: 'border-blue-500/50 bg-blue-950/80 text-blue-200' };
+  $('toastBanner').className = 'rounded-2xl p-3.5 border text-sm font-bold flex items-center justify-between transition-all ' + (colors[type] || colors.info);
+  $('toastText').textContent = msg;
+  $('toastBanner').classList.remove('hidden');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => $('toastBanner').classList.add('hidden'), 6000);
+}
+function getKey() { return (localStorage.getItem(LS_KEY) || '').trim(); }
+function refreshKeyUI() {
+  const has = !!getKey();
+  $('apiStatusDot').className = 'inline-block w-2 h-2 rounded-full ml-1 ' + (has ? 'bg-emerald-400' : 'bg-amber-400');
+  $('inlineApiStatusTitle') && ($('inlineApiBar').querySelector('span + span') ? null : null);
+}
+function setProgress(show, step, pct) {
+  $('liveProgressBox').classList.toggle('hidden', !show);
+  if (show) {
+    $('liveProgressStepText').innerHTML = '<span class="spinner"></span> ' + step;
+    $('liveProgressPercent').textContent = pct + '%';
+    $('liveProgressBar').style.width = pct + '%';
+  }
+}
+function setStage(n, status) { /* status: todo | busy | done */
+  const pill = $('stagePill' + n), ico = pill.querySelector('.st-ico');
+  pill.className = 'rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 ' +
+    (status === 'done' ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300' :
+     status === 'busy' ? 'bg-blue-950/70 border border-blue-500/50 text-blue-300' :
+     'bg-slate-950 border border-slate-800 text-slate-300');
+  ico.className = 'st-ico ' + (status === 'done' ? 'text-emerald-400' : status === 'busy' ? 'text-blue-400' : 'text-slate-500');
+  ico.textContent = status === 'done' ? '✓' : n + '.';
+}
+function normalize(s) {
+  return (s || '').toLowerCase()
+    .replace(/[\u064B-\u0652\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/[^a-z0-9\u0600-\u06FF\s+\/]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+function drugScore(query, candidate) {
+  const q = normalize(query), c = normalize(candidate);
+  if (!q || !c) return 0;
+  if (c === q) return 100;
+  if (c.startsWith(q)) return 85;
+  if (c.includes(q)) return 70;
+  const qt = q.split(' '), ct = new Set(c.split(' '));
+  const hit = qt.filter(t => ct.has(t)).length;
+  return Math.round(50 * hit / qt.length);
+}
+function loadJSON(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }
+function saveJSON(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+
+/* ================= GEMINI ================= */
+async function callGemini(parts) {
+  const key = getKey();
+  if (!key) throw new Error('No Gemini API key. Paste your free key first.');
+  let modelsToTry = [...GEMINI_MODELS];
+  try {
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+    const listData = await listRes.json();
+    if (Array.isArray(listData.models)) {
+      const discovered = listData.models
+        .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+        .map(m => m.name.replace(/^models\//, ''))
+        .filter(n => n.includes('gemini') && !n.includes('tts') && !n.includes('embedding') && !n.includes('imagen'));
+      const flashes = discovered.filter(n => n.includes('flash')).reverse();
+      modelsToTry = [...new Set([...GEMINI_MODELS, ...flashes, ...discovered])];
+    }
+  } catch (e) {}
+
+  let lastErr = null;
+  for (const model of modelsToTry.slice(0, 6)) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 4096, responseMimeType: 'application/json' }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+      const text = data.candidates[0].content.parts.map(p => p.text || '').join('');
+      return extractJSON(text);
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('All Gemini models failed');
+}
+function extractJSON(text) {
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('Bad AI response format');
+  return JSON.parse(m[0]);
+}
+function getCorrectionsPrompt() {
+  const corr = loadJSON(LS_CORR, []).slice(-20);
+  if (!corr.length) return '';
+  return '\n\nLEARNED CORRECTIONS from this user (apply them if handwriting matches):' +
+    corr.map(c => `\n- When the writing looks like "${c.wrong}", the correct drug is: ${c.right}`).join('');
+}
+async function geminiOCR(base64, mime, specialty) {
+  const specLine = specialty === 'auto'
+    ? 'Detect the doctor specialty from the prescription header if written.'
+    : `The doctor specialty is "${specialty}" — use this context.`;
+  const prompt = `You are an Egyptian clinical pharmacist assistant. Read this handwritten Egyptian prescription photo.
+${specLine}
+Extract EVERY medication with its dosage. Return ONLY raw JSON (no markdown fences) with this shape:
+{"doctor_name":"string or Unknown","specialty":"string","items":[{"trade_name":"brand name best guess","dosage":"e.g. 500mg","frequency":"e.g. 1x3","duration":"e.g. 5 days","confidence":0.0}],"notes":"anything notable"}
+Rules: Egyptian brand names preferred; if a word is illegible give best guess with confidence below 0.5; paracetamol = بانادول etc use common Egyptian brands when obvious.${getCorrectionsPrompt()}`;
+  return callGemini([{ text: prompt }, { inline_data: { mime_type: mime, data: base64 } }]);
+}
+async function geminiReview(items, specialty) {
+  const lines = items.map((it, i) => `${i + 1}. ${(it.match && it.match.name) || it.trade_name} (${(it.match && it.match.active) || it.active || 'active unknown'}) ${it.dosage || ''} ${it.frequency || ''}`);
+  const prompt = `You are a clinical pharmacist. Given this prescription list:
+${lines.join('\n')}
+Specialty context: ${specialty}.
+Check drug-drug interactions using standard clinical knowledge (based on ACTIVE INGREDIENTS).
+Return ONLY raw JSON: {"interactions":[{"severity":"major|moderate|minor","drugs":"A + B","description":"short"}],"audit":["✓ ...","⚠ ..."]}
+For audit: verify each drug exists plausibly for this specialty, flag duplicate therapy, dose red flags, and illegible/low-confidence items. If no interactions: empty array.`;
+  return callGemini([{ text: prompt }]);
+}
+
+/* ================= EGYPTIAN DB MATCHING ================= */
+async function apiSearchDrug(q) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(`${EG_DRUGS_API}?q=${encodeURIComponent(q)}&limit=5`, { signal: ctrl.signal });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.results || []).map(r => ({ name: r.name, arabic: r.arabic, active: r.active, price: r.price, source: 'eg-drugs API' }));
+  } catch (e) { return []; } finally { clearTimeout(t); }
+}
+function starterMatch(q) {
+  let best = null, bestScore = 0;
+  for (const [en, ar, active] of STARTER_DRUGS) {
+    const s = Math.max(drugScore(q, en), drugScore(q, ar));
+    if (s > bestScore) { bestScore = s; best = { name: en, arabic: ar, active, source: 'starter list (offline)' }; }
+  }
+  return bestScore >= 60 ? best : null;
+}
+async function matchDrug(name) {
+  const cleanName = (name || '').trim();
+  const firstWord = cleanName.split(/\s+/)[0] || cleanName;
+  const local = starterMatch(cleanName) || starterMatch(firstWord);
+  let api = await apiSearchDrug(cleanName);
+  if (!api.length && firstWord.length >= 3 && firstWord.toLowerCase() !== cleanName.toLowerCase()) {
+    api = await apiSearchDrug(firstWord);
+  }
+  let best = null, bestScore = 0;
+  for (const c of api) {
+    const s = Math.max(drugScore(name, c.name), drugScore(name, c.arabic || ''));
+    if (s > bestScore) { bestScore = s; best = c; }
+  }
+  if (best && bestScore >= 60) return { ...best, score: bestScore };
+  if (local) return { ...local, score: 70 };
+  if (best) return { ...best, score: bestScore };
+  return null;
+}
+
+/* ================= IMAGE ================= */
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function downscale(dataUrl, maxDim) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+/* ================= PIPELINE ================= */
+async function handleImageFile(file, mode) {
+  if (state.busy) { showToast('Please wait, an analysis is running...', 'info'); return; }
+  const raw = await fileToBase64(file);
+  const thumb = await downscale(raw, 420);
+  const big = await downscale(raw, 1400);
+  const m = big.match(/^data:(image\/\w+);base64,(.+)$/);
+  if (!m) { showToast('Could not process image', 'err'); return; }
+  state.currentImage = thumb;
+
+  if (mode === 'save') { saveHistory({ doctor: 'Saved (not read)', specialty: '-', items: [], interactions: [], audit: [], image: thumb, date: Date.now(), unread: true }); showToast('Prescription saved to history (not read).', 'ok'); return; }
+
+  if (!getKey()) { showToast('Add your free Gemini API key first (Step 1 above).', 'err'); switchTab('scan'); return; }
+  state.busy = true;
+  resetStages();
+  $('pipelineStrip').classList.remove('hidden');
+  $('itemsTableCard').classList.remove('hidden');
+  $('uploadedPreviewCard').classList.remove('hidden');
+  $('uploadedRxImg').src = thumb;
+  $('uploadedFileName').textContent = file.name || 'Camera capture';
+  $('analysisModeBadge').textContent = 'Analyzing...';
+  $('rxSavedBadge').classList.add('hidden');
+
+  try {
+    /* Stage 1: OCR */
+    setStage(1, 'busy'); setProgress(true, 'Step 1/4: Reading prescription handwriting (Gemini Vision)...', 20);
+    const specialty = $('specialtySelect').value;
+    const ocr = await geminiOCR(m[2], m[1], specialty);
+    state.doctor = ocr.doctor_name || 'Unknown doctor';
+    state.specialty = ocr.specialty || (specialty === 'auto' ? 'auto-detected' : specialty);
+    state.items = (ocr.items || []).map(it => ({ ...it, match: null, status: 'pending' }));
+    $('rxDoctorHeader').textContent = (state.doctor === 'Unknown doctor' ? 'Doctor: ' : 'Dr. ') + state.doctor + (state.specialty && state.specialty !== 'auto-detected' ? ' — ' + state.specialty : '');
+    $('rxLogicSummary').textContent = 'Specialty filter: ' + (specialty === 'auto' ? 'Auto-Detect' : specialty) + ' | ' + state.items.length + ' medication(s) found';
+    renderItems();
+    setStage(1, 'done');
+
+    /* Stage 2: DB Match */
+    setStage(2, 'busy'); setProgress(true, 'Step 2/4: Matching against Egyptian Drug DB (27,617 drugs)...', 45);
+    let done = 0;
+    for (const it of state.items) {
+      it.status = 'matching'; renderItems();
+      it.match = await matchDrug(it.trade_name);
+      it.status = 'done'; done++; renderItems();
+      setProgress(true, `Step 2/4: Matching drugs... (${done}/${state.items.length})`, 45 + Math.round(20 * done / Math.max(1, state.items.length)));
+    }
+    setStage(2, 'done');
+
+    /* Stage 3+4: DDI + Audit (single call, displayed separately) */
+    setStage(3, 'busy'); setProgress(true, 'Step 3/4: Screening drug-drug interactions...', 75);
+    const review = await geminiReview(state.items, state.specialty);
+    state.interactions = review.interactions || [];
+    state.audit = review.audit || [];
+    renderInteractions(); setStage(3, 'done');
+    setStage(4, 'busy'); setProgress(true, 'Step 4/4: Final clinical audit...', 90);
+    renderAudit(); setStage(4, 'done');
+    setProgress(true, 'Done ✓', 100);
+
+    $('analysisModeBadge').textContent = 'Processed';
+    saveHistory({ doctor: state.doctor, specialty: state.specialty, items: state.items, interactions: state.interactions, audit: state.audit, image: thumb, date: Date.now(), unread: false });
+    $('rxSavedBadge').classList.remove('hidden');
+    const majors = state.interactions.filter(i => i.severity === 'major').length;
+    showToast(majors ? `Done — ${majors} MAJOR interaction(s) found. Check the alert below!` : 'Prescription analyzed and saved to history.', majors ? 'err' : 'ok');
+  } catch (e) {
+    console.error(e);
+    setProgress(false);
+    showToast('Error: ' + (e.message || e), 'err');
+    $('analysisModeBadge').textContent = 'Failed';
+  } finally {
+    state.busy = false;
+    setTimeout(() => setProgress(false), 1200);
+  }
+}
+function resetStages() { for (let i = 1; i <= 4; i++) setStage(i, 'todo'); $('interactionAlertBox').classList.add('hidden'); $('auditCard').classList.add('hidden'); }
+
+/* ================= ITEMS RENDER ================= */
+function confColor(c) { return c >= 0.85 ? 'text-emerald-400' : c >= 0.6 ? 'text-amber-400' : 'text-rose-400'; }
+function renderItems() {
+  const box = $('rxItemsContainer');
+  box.innerHTML = '';
+  state.items.forEach((it, i) => {
+    const row = document.createElement('div');
+    const editing = it._edit;
+    row.className = 'px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center text-xs ' + (editing ? 'edit-mode' : '');
+    const matchHtml = it.match
+      ? `<div class="text-emerald-300 font-bold">${esc(it.match.name)}</div><div class="text-[10px] text-slate-400">${esc(it.match.source)}${it.match.arabic ? ' · ' + esc(it.match.arabic) : ''}${it.match.price ? ' · ' + esc(it.match.price) + ' EGP' : ''}</div>`
+      : (it.status === 'matching' ? '<span class="text-blue-300">matching…</span>' : '<span class="text-slate-500">no Egyptian match</span>');
+    const conf = typeof it.confidence === 'number' ? it.confidence : 0.5;
+    row.innerHTML = editing ? `
+      <div class="sm:col-span-3"><input class="row-input" id="ed-name-${i}" value="${escAttr(it.trade_name)}" placeholder="Trade name"></div>
+      <div class="sm:col-span-3"><input class="row-input" id="ed-dose-${i}" value="${escAttr(it.dosage || '')}" placeholder="Dosage e.g. 500mg"></div>
+      <div class="sm:col-span-2"><input class="row-input" id="ed-freq-${i}" value="${escAttr(it.frequency || '')}" placeholder="e.g. 1x3"></div>
+      <div class="sm:col-span-2"><input class="row-input" id="ed-dur-${i}" value="${escAttr(it.duration || '')}" placeholder="e.g. 5 days"></div>
+      <div class="sm:col-span-2 flex gap-1.5 justify-end">
+        <button data-act="save" data-i="${i}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg">Save</button>
+        <button data-act="cancel" data-i="${i}" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 py-1.5 rounded-lg">✕</button>
+      </div>` : `
+      <div class="sm:col-span-3">
+        <div class="font-extrabold text-white">${esc(it.trade_name)}</div>
+        <div class="mt-0.5">${matchHtml}</div>
+      </div>
+      <div class="sm:col-span-3 text-slate-200">${esc(it.dosage || '—')} · ${esc(it.frequency || '?')} · ${esc(it.duration || '?')}</div>
+      <div class="sm:col-span-2 text-slate-400">${esc(it.match ? it.match.active || '—' : '—')}</div>
+      <div class="sm:col-span-2"><span class="font-bold ${confColor(conf)}">${Math.round(conf * 100)}%</span> ${it.status === 'matching' ? '<span class="text-blue-300">⏳</span>' : ''}</div>
+      <div class="sm:col-span-2 flex gap-1.5 justify-end">
+        <button data-act="edit" data-i="${i}" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold px-3 py-1.5 rounded-lg">Edit</button>
+        <button data-act="del" data-i="${i}" class="bg-rose-950 hover:bg-rose-900 border border-rose-500/40 text-rose-300 font-bold px-3 py-1.5 rounded-lg">🗑</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  box.querySelectorAll('button[data-act]').forEach(b => b.addEventListener('click', onRowAction));
+}
+function onRowAction(e) {
+  const i = +e.currentTarget.dataset.i, act = e.currentTarget.dataset.act, it = state.items[i];
+  if (act === 'del') { state.items.splice(i, 1); renderItems(); return; }
+  if (act === 'edit') { it._edit = true; renderItems(); return; }
+  if (act === 'cancel') { it._edit = false; renderItems(); return; }
+  if (act === 'save') {
+    const old = it.trade_name;
+    it.trade_name = $('ed-name-' + i).value.trim() || it.trade_name;
+    it.dosage = $('ed-dose-' + i).value.trim();
+    it.frequency = $('ed-freq-' + i).value.trim();
+    it.duration = $('ed-dur-' + i).value.trim();
+    it._edit = false;
+    if (normalize(old) !== normalize(it.trade_name)) {
+      const corr = loadJSON(LS_CORR, []);
+      corr.push({ wrong: old, right: it.trade_name, date: Date.now() });
+      saveJSON(LS_CORR, corr.slice(-100));
+      showToast('Correction saved — Agent will remember this for future scans.', 'ok');
+    }
+    it.status = 'matching'; renderItems();
+    matchDrug(it.trade_name).then(m => { it.match = m; it.status = 'done'; renderItems(); });
+  }
+}
+function renderInteractions() {
+  const box = $('interactionAlertBox'), body = $('interactionBody');
+  if (!state.interactions.length) {
+    box.className = 'rounded-3xl p-4 border-2 space-y-2 border-emerald-500/40 bg-emerald-950/30';
+    box.querySelector('div.flex.items-center.gap-2').innerHTML = '<span class="text-xl">✅</span><span class="text-emerald-300 font-extrabold text-sm sm:text-base">No significant drug-drug interactions detected</span>';
+    $('interactionSeverity').textContent = 'None'; $('interactionSeverity').className = 'text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-600 text-white';
+    body.innerHTML = '<p class="text-emerald-200">AI screening found no major/moderate interactions between these active ingredients. Always verify manually: <a href="' + DRUGS_COM_URL + '" target="_blank" rel="noopener" class="underline font-bold">Drugs.com Interaction Checker ↗</a></p>';
+    box.classList.remove('hidden'); return;
+  }
+  const worst = state.interactions.some(x => x.severity === 'major') ? 'major' : state.interactions.some(x => x.severity === 'moderate') ? 'moderate' : 'minor';
+  box.className = 'rounded-3xl p-4 border-2 space-y-2 border-rose-500/60 bg-rose-950/40';
+  box.querySelector('div.flex.items-center.gap-2').innerHTML = '<span class="text-xl">⚠️</span><span class="text-rose-300 font-extrabold text-sm sm:text-base">Drug-Drug Interaction Alert</span>';
+  $('interactionSeverity').textContent = worst.toUpperCase();
+  $('interactionSeverity').className = 'text-xs font-extrabold px-2.5 py-1 rounded-full ' + (worst === 'major' ? 'bg-rose-600 text-white' : worst === 'moderate' ? 'bg-amber-500 text-slate-950' : 'bg-yellow-500 text-slate-950');
+  body.innerHTML = state.interactions.map(x =>
+    `<div class="text-rose-100"><span class="font-extrabold uppercase text-[10px] px-1.5 py-0.5 rounded ${x.severity === 'major' ? 'bg-rose-600' : x.severity === 'moderate' ? 'bg-amber-500 text-slate-950' : 'bg-yellow-500 text-slate-950'}">${esc(x.severity)}</span> <b>${esc(x.drugs)}</b> — ${esc(x.description)}</div>`
+  ).join('') + `<p class="pt-1 text-rose-200/80">Verify each pair on <a href="${DRUGS_COM_URL}" target="_blank" rel="noopener" class="underline font-bold">Drugs.com ↗</a></p>`;
+  box.classList.remove('hidden');
+}
+function renderAudit() {
+  const list = $('finalAuditList');
+  list.innerHTML = state.audit.length
+    ? state.audit.map(a => `<div class="bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-200">${esc(a)}</div>`).join('')
+    : '<div class="bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-400">No audit notes returned.</div>';
+  $('auditCard').classList.remove('hidden');
+}
+function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
+
+/* ================= HISTORY ================= */
+function getHistory() { return loadJSON(LS_HIST, []); }
+function saveHistory(entry) {
+  const h = getHistory();
+  h.unshift(entry);
+  while (h.length > 50) h.pop();
+  if (!saveJSON(LS_HIST, h)) {
+    h.forEach(x => delete x.image);
+    saveJSON(LS_HIST, h);
+    showToast('Storage full — oldest images were removed (data kept).', 'info');
+  }
+  renderHistoryBadge();
+}
+function renderHistoryBadge() { $('totalHistoryBadge').textContent = getHistory().length; }
+function renderHistory() {
+  const q = normalize($('historySearchInput').value || '');
+  const list = getHistory().filter(h => !q || normalize(JSON.stringify(h.items.map(i => i.trade_name)) + h.doctor + new Date(h.date).toLocaleDateString()).includes(q));
+  const box = $('historyCardsList');
+  if (!list.length) { box.innerHTML = '<div class="text-center text-slate-500 text-sm py-8">No prescriptions saved yet.<br>Scan one from the Scan tab!</div>'; return; }
+  box.innerHTML = '';
+  list.forEach(h => {
+    const d = new Date(h.date);
+    const majors = (h.interactions || []).filter(x => x.severity === 'major').length;
+    const card = document.createElement('div');
+    card.className = 'bg-slate-950/70 border border-slate-800 rounded-2xl p-3.5 flex gap-3 items-start';
+    card.innerHTML = `
+      ${h.image ? `<img src="${h.image}" class="w-16 h-16 rounded-xl object-cover border border-slate-700 shrink-0" alt="">` : '<div class="w-16 h-16 rounded-xl bg-slate-800 flex items-center justify-center text-xl shrink-0">🗂️</div>'}
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-extrabold text-white text-sm truncate">${esc(h.doctor || 'Unknown doctor')}</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          ${h.unread ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Saved only</span>' : ''}
+          ${majors ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-600 text-white pulse-badge">${majors} MAJOR DDI</span>` : ''}
+        </div>
+        <div class="text-xs text-slate-400 mt-1">${esc((h.specialty || '').toString())} · ${(h.items || []).length} medication(s)${(h.items || []).length ? ': ' + esc(h.items.map(i => i.trade_name).join(', ')).slice(0, 90) : ''}</div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-1.5 shrink-0">
+        <button data-open class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">${h.unread ? '🔍 Read Now' : '↗ Open'}</button>
+        <button data-del class="bg-rose-950 hover:bg-rose-900 border border-rose-500/40 text-rose-300 text-xs font-bold px-2.5 py-1.5 rounded-lg">🗑</button>
+      </div>`;
+    card.querySelector('[data-open]').addEventListener('click', async () => {
+      switchTab('scan');
+      if (h.unread && h.image) {
+        // Convert base64 thumb back to Blob/File and analyze it now!
+        const res = await fetch(h.image);
+        const blob = await res.blob();
+        const file = new File([blob], 'Saved_History_Rx.jpg', { type: blob.type || 'image/jpeg' });
+        await handleImageFile(file, 'read');
+      } else {
+        state.doctor = h.doctor || 'Unknown doctor';
+        state.specialty = h.specialty || 'auto';
+        state.items = JSON.parse(JSON.stringify(h.items || []));
+        state.interactions = JSON.parse(JSON.stringify(h.interactions || []));
+        state.audit = JSON.parse(JSON.stringify(h.audit || []));
+        $('pipelineStrip').classList.remove('hidden');
+        $('itemsTableCard').classList.remove('hidden');
+        if (h.image) {
+          $('uploadedPreviewCard').classList.remove('hidden');
+          $('uploadedRxImg').src = h.image;
+        }
+        $('rxDoctorHeader').textContent = state.doctor;
+        for (let s = 1; s <= 4; s++) setStage(s, 'done');
+        renderItems();
+        renderInteractions();
+        renderAudit();
+        showToast('Loaded prescription from History into Scan view.', 'info');
+      }
+    });
+    card.querySelector('[data-del]').addEventListener('click', () => {
+      const all = getHistory(); const idx = all.findIndex(x => x.date === h.date);
+      if (idx > -1) { all.splice(idx, 1); saveJSON(LS_HIST, all); renderHistory(); renderHistoryBadge(); }
+    });
+    box.appendChild(card);
+  });
+}
+
+/* ================= DRUG DB SEARCH ================= */
+let dbTimer = null;
+async function searchDb() {
+  const q = $('dbSearchInput').value.trim();
+  const meta = $('dbResultsMeta'), box = $('dbResultsList');
+  if (q.length < 2) { meta.textContent = 'Type at least 2 characters.'; box.innerHTML = ''; return; }
+  meta.innerHTML = '<span class="spinner"></span> Searching Egyptian Drug DB...';
+  box.innerHTML = '';
+  const online = await apiSearchDrug(q);
+  let results = online;
+  if (!results.length) {
+    const loc = starterMatch(q);
+    results = loc ? [loc] : [];
+    meta.textContent = results.length ? 'Offline starter list result (API unreachable):' : 'No results found.';
+  } else {
+    meta.textContent = `Top matches from eg-drugs (live):`;
+  }
+  if (!results.length) return;
+  box.innerHTML = results.map(r => `
+    <div class="bg-slate-950/70 border border-slate-800 rounded-xl px-3.5 py-2.5">
+      <div class="flex items-center justify-between gap-2">
+        <span class="font-extrabold text-white text-sm">${esc(r.name)}</span>
+        ${r.price ? `<span class="text-[11px] font-bold text-emerald-300 shrink-0">${esc(r.price)} EGP</span>` : ''}
+      </div>
+      <div class="text-xs text-slate-400 mt-0.5">${r.arabic ? esc(r.arabic) + ' · ' : ''}<span class="text-blue-300">${esc(r.active || '')}</span>${r.company ? ' · ' + esc(r.company) : ''}</div>
+    </div>`).join('');
+}
+
+/* ================= DEMOS (offline) ================= */
+const DEMOS = {
+  '1': {
+    doctor: 'Dr. Mohamed Abdelrahman — Consultant of Internal Medicine & GI', specialty: 'internal medicine',
+    items: [
+      { trade_name: 'Plavix', dosage: '75mg', frequency: '1x1', duration: '30 days', confidence: 0.92 },
+      { trade_name: 'Aspirin', dosage: '100mg', frequency: '1x1', duration: '30 days', confidence: 0.88 },
+      { trade_name: 'Nexium', dosage: '40mg', frequency: '1x1', duration: '14 days', confidence: 0.9 },
+      { trade_name: 'Augmentin', dosage: '1g', frequency: '1x2', duration: '7 days', confidence: 0.85 }
+    ],
+    interactions: [{ severity: 'moderate', drugs: 'clopidogrel + acetylsalicylic acid', description: 'Combined antiplatelet therapy increases bleeding risk — common dual therapy but monitor for bruising/GI bleeding.' }],
+    audit: ['✓ Plavix + Aspirin: plausible dual antiplatelet regimen for internal medicine.', '✓ Augmentin 1g 1x2: standard adult dose.', '⚠ Aspirin + Augmentin: both can irritate stomach — Nexium co-prescription makes sense.', '✓ No duplicate therapy detected.']
+  },
+  '2': {
+    doctor: 'Dr. Ahmed El-Sayed — Orthopedics', specialty: 'orthopedics',
+    items: [
+      { trade_name: 'Cataflam', dosage: '50mg', frequency: '1x3', duration: '5 days', confidence: 0.9 },
+      { trade_name: 'Brufen', dosage: '400mg', frequency: '1x3', duration: '5 days', confidence: 0.86 },
+      { trade_name: 'Mydocalm', dosage: '150mg', frequency: '1x2', duration: '7 days', confidence: 0.8 },
+      { trade_name: 'Osteocare', dosage: '1 tab', frequency: '1x1', duration: '30 days', confidence: 0.65 }
+    ],
+    interactions: [{ severity: 'major', drugs: 'diclofenac + ibuprofen', description: 'DUPLICATE NSAID therapy — combining two NSAIDs multiplies GI bleed/renal risk without extra benefit. Flag to prescriber.' }],
+    audit: ['⚠ Cataflam (diclofenac) + Brufen (ibuprofen) are both NSAIDs — major duplicate.', '✓ Mydocalm: appropriate muscle relaxant for orthopedic pain.', '⚠ Osteocare: low confidence read — verify handwriting.', '✓ Duration 5 days reasonable for acute musculoskeletal pain.']
+  },
+  '3': {
+    doctor: 'Dr. Sara Mostafa — Pediatrics', specialty: 'pediatrics',
+    items: [
+      { trade_name: 'Augmentin syrup', dosage: '457mg/5ml', frequency: '1x2 (5ml)', duration: '7 days', confidence: 0.87 },
+      { trade_name: 'Ventolin syrup', dosage: '2mg/5ml', frequency: '1x3 (2.5ml)', duration: '5 days', confidence: 0.78 },
+      { trade_name: 'Zyrtec syrup', dosage: '5mg/5ml', frequency: '1x1 (2.5ml)', duration: '5 days', confidence: 0.83 },
+      { trade_name: 'Antinal', dosage: 'suspension', frequency: '1x3 (5ml)', duration: '5 days', confidence: 0.7 }
+    ],
+    interactions: [],
+    audit: ['✓ All formulations are pediatric liquids — consistent with pediatrics specialty.', '✓ Augmentin dose band plausible for pediatric weight-based dosing.', '⚠ Ventolin syrup frequency 1x3 — confirm dose volume against child weight.', '✓ No interactions between these ingredients.']
+  }
+};
+async function runDemo(n) {
+  if (state.busy) return;
+  const d = DEMOS[n]; if (!d) return;
+  state.busy = true;
+  resetStages();
+  $('pipelineStrip').classList.remove('hidden');
+  $('itemsTableCard').classList.remove('hidden');
+  $('uploadedPreviewCard').classList.add('hidden');
+  $('rxDoctorHeader').textContent = d.doctor;
+  $('rxLogicSummary').textContent = 'Demo mode (offline) · ' + d.items.length + ' medication(s)';
+  state.specialty = d.specialty;
+  state.interactions = []; state.audit = [];
+  setStage(1, 'busy'); setProgress(true, 'Step 1/4 (demo): Reading handwriting...', 25);
+  await new Promise(r => setTimeout(r, 700));
+  state.items = d.items.map(it => ({ ...it, match: null, status: 'pending' }));
+  renderItems(); setStage(1, 'done');
+  setStage(2, 'busy'); setProgress(true, 'Step 2/4 (demo): Matching Egyptian Drug DB...', 50);
+  for (const it of state.items) {
+    it.status = 'matching'; renderItems();
+    it.match = await matchDrug(it.trade_name) || starterMatch(it.trade_name) || { name: it.trade_name + ' (unverified)', active: '—', source: 'unverified', score: 0 };
+    it.status = 'done'; renderItems();
+    await new Promise(r => setTimeout(r, 250));
+  }
+  setStage(2, 'done');
+  setStage(3, 'busy'); setProgress(true, 'Step 3/4 (demo): DDI screen...', 75);
+  await new Promise(r => setTimeout(r, 600));
+  state.interactions = d.interactions; renderInteractions(); setStage(3, 'done');
+  setStage(4, 'busy'); setProgress(true, 'Step 4/4 (demo): Clinical audit...', 90);
+  await new Promise(r => setTimeout(r, 500));
+  state.audit = d.audit; renderAudit(); setStage(4, 'done');
+  setProgress(true, 'Demo done ✓', 100);
+  saveHistory({ doctor: d.doctor, specialty: d.specialty, items: state.items, interactions: d.interactions, audit: d.audit, image: null, date: Date.now(), unread: false, demo: true });
+  $('rxSavedBadge').classList.remove('hidden');
+  showToast('Demo ' + n + ' complete — saved to history.', 'ok');
+  state.busy = false;
+  setTimeout(() => setProgress(false), 1200);
+}
+
+/* ================= TABS ================= */
+function switchTab(name) {
+  const map = { scan: ['viewScan', 'tabBtnScan'], history: ['viewHistory', 'tabBtnHistory'], db: ['viewDb', 'tabBtnDb'] };
+  Object.keys(map).forEach(k => {
+    $(map[k][0]).classList.toggle('hidden', k !== name);
+    $(map[k][1]).className = k === name
+      ? 'tab-active py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5'
+      : 'text-slate-300 hover:text-white py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5';
+  });
+  if (name === 'history') renderHistory();
+}
+
+/* ================= WIRING ================= */
+$('tabBtnScan').addEventListener('click', () => switchTab('scan'));
+$('tabBtnHistory').addEventListener('click', () => switchTab('history'));
+$('tabBtnDb').addEventListener('click', () => switchTab('db'));
+$('btnOpenHistoryShortcut').addEventListener('click', () => switchTab('history'));
+$('btnCloseToast').addEventListener('click', () => $('toastBanner').classList.add('hidden'));
+
+function saveKeyFrom(inputEl) {
+  const v = inputEl.value.trim();
+  if (!v.startsWith('AIza')) { showToast('Key should start with AIza... — check you copied it fully.', 'err'); return; }
+  localStorage.setItem(LS_KEY, v);
+  refreshKeyUI();
+  $('inlineApiKeyInput').value = v;
+  showToast('API key saved ✓ The AI Agent is live.', 'ok');
+}
+$('btnInlineSaveKey').addEventListener('click', () => saveKeyFrom($('inlineApiKeyInput')));
+$('btnModalSaveKey').addEventListener('click', () => { saveKeyFrom($('modalApiKeyInput')); $('apiModal').classList.add('hidden'); });
+$('btnOpenApiModal').addEventListener('click', () => { $('modalApiKeyInput').value = getKey(); $('apiModal').classList.remove('hidden'); });
+$('btnCloseApiModal').addEventListener('click', () => $('apiModal').classList.add('hidden'));
+$('btnClearKey').addEventListener('click', () => { localStorage.removeItem(LS_KEY); $('modalApiKeyInput').value = ''; $('inlineApiKeyInput').value = ''; refreshKeyUI(); showToast('API key removed.', 'info'); });
+
+$('cameraRxInput').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) handleImageFile(f, 'read');
+  e.target.value = '';
+});
+$('galleryRxInput').addEventListener('change', e => {
+  pendingFiles = Array.from(e.target.files);
+  if (!pendingFiles.length) return;
+  $('inlineChoiceTitle').textContent = pendingFiles.length + ' image(s) selected! Choose action:';
+  $('inlineGalleryChoiceBox').classList.remove('hidden');
+  e.target.value = '';
+});
+$('btnCancelInlineChoice').addEventListener('click', () => { pendingFiles = []; $('inlineGalleryChoiceBox').classList.add('hidden'); });
+$('btnInlineReadNow').addEventListener('click', async () => {
+  $('inlineGalleryChoiceBox').classList.add('hidden');
+  for (const f of pendingFiles) await handleImageFile(f, 'read');
+  pendingFiles = [];
+});
+$('btnInlineSaveOnly').addEventListener('click', async () => {
+  $('inlineGalleryChoiceBox').classList.add('hidden');
+  for (const f of pendingFiles) await handleImageFile(f, 'save');
+  pendingFiles = [];
+});
+
+$('btnAddRow').addEventListener('click', () => {
+  state.items.push({ trade_name: 'New drug', dosage: '', frequency: '', duration: '', confidence: 0.5, match: null, status: 'done', _edit: true });
+  $('itemsTableCard').classList.remove('hidden');
+  renderItems();
+});
+document.querySelectorAll('.demo-btn').forEach(b => b.addEventListener('click', () => runDemo(b.dataset.demo)));
+$('historySearchInput').addEventListener('input', renderHistory);
+$('dbSearchInput').addEventListener('input', () => { clearTimeout(dbTimer); dbTimer = setTimeout(searchDb, 400); });
+
+/* Init */
+refreshKeyUI();
+if (getKey()) $('inlineApiKeyInput').value = getKey();
+renderHistoryBadge();
+</script>
+</body>
+</html>
